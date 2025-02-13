@@ -7,5 +7,4 @@ config = rx.Config(
     frontend_port=3000,
     backend_port=8000,
     telemetry_enabled=False,
-    # Removemos module_name ya que usaremos la estructura estándar
 )

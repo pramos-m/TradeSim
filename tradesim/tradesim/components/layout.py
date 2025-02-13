@@ -1,6 +1,5 @@
 import reflex as rx
 from ..components.navbar import navbar
-from ..styles.colors import colors
 
 def layout(content: rx.Component) -> rx.Component:
     """Layout principal de la aplicación."""
@@ -14,7 +13,7 @@ def layout(content: rx.Component) -> rx.Component:
             margin="0 auto",
         ),
         min_height="100vh",
-        background=colors["background"],
-        color=colors["text"],
+        background="#ffffff",
+        color="#33333",
         spacing="4",
     )

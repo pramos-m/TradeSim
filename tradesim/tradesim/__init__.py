@@ -1,17 +1,21 @@
-"""Initialize the tradesim application."""
+# __init__.py
 import reflex as rx
-from .state import State
+from .state.auth_state import AuthState
 
-# Create the app instance
-app = rx.App(state=State)
+# Crear la aplicación
+app = rx.App()
 
-# Import pages after app creation to avoid circular imports
+# Establecer el estado de la aplicación
+app.state = AuthState  # Esta es la forma correcta de establecer el estado
+
+# Importar las páginas después de crear la aplicación
 from .pages.index import index
 from .pages.dashboard import dashboard
+from .pages.login import login_page
 
-# Add pages to the app
+# Añadir las páginas
 app.add_page(index, route="/")
 app.add_page(dashboard, route="/dashboard")
+app.add_page(login_page, route="/login")
 
-# Export the app variable
 __all__ = ["app"]
