@@ -1,95 +1,145 @@
+# /state/auth_state.py
+from typing import Optional
 import reflex as rx
-from ..database import SessionLocal
+from sqlalchemy.orm import Session
+from ..database import get_db
 from ..models.user import User
 
 class AuthState(rx.State):
-    """Estado de autenticación."""
+    """The auth state."""
+    
+    # Form fields
     username: str = ""
     email: str = ""
     password: str = ""
     confirm_password: str = ""
-    is_logged: bool = False
-    error_message: str = ""
-    active_tab: str = "register"
-
+    
+    # UI state
+    active_tab: str = "login"
+    auth_token: Optional[str] = None
+    error_message: Optional[str] = None
+    is_logged: bool = False  # Add this line
+    
     def set_username(self, username: str):
-        """Establecer nombre de usuario."""
         self.username = username
-        self.error_message = ""
-
+        
     def set_email(self, email: str):
-        """Establecer email."""
         self.email = email
-        self.error_message = ""
-
+        
     def set_password(self, password: str):
-        """Establecer contraseña."""
         self.password = password
-        self.error_message = ""
-
-    def set_confirm_password(self, password: str):
-        """Establecer confirmación de contraseña."""
-        self.confirm_password = password
-        self.error_message = ""
-
-    def set_active_tab(self, tab: str):
-        """Cambiar entre login y registro."""
+        
+    def set_confirm_password(self, confirm_password: str):
+        self.confirm_password = confirm_password
+        
+    def set_active_tab(self, tab: str) -> None:
+        """Set the active tab."""
         self.active_tab = tab
-
-    def login(self):
-        """Manejar el inicio de sesión."""
-        with SessionLocal() as session:
-            user = session.query(User).filter_by(username=self.username).first()
-            if user and User.verify_password(self.password, user.hashed_password):
-                self.is_logged = True
-                self.error_message = ""
-                return rx.redirect("/dashboard")
-            else:
-                self.error_message = "Usuario o contraseña inválidos"
-                self.is_logged = False
-
-    def logout(self):
-        """Cerrar sesión."""
-        self.is_logged = False
+        # Clear form fields and error message when switching tabs
         self.username = ""
         self.email = ""
         self.password = ""
         self.confirm_password = ""
-        self.error_message = ""
-        return rx.redirect("/login")
+        self.error_message = None
+
+    def login(self):
+        """Handle login."""
+        try:
+            # Input validation
+            if not self.email or not self.password:
+                self.error_message = "Please fill in all fields"
+                return
+
+            # Get database session
+            db = next(get_db())
+            
+            # Find user
+            user = db.query(User).filter(User.email == self.email).first()
+            
+            if not user or not User.verify_password(self.password, user.hashed_password):
+                self.error_message = "Invalid email or password"
+                return
+
+            # Set auth token in state
+            self.auth_token = str(user.id)  # Simple token for now
+            
+            # Clear form and error
+            self.password = ""
+            self.error_message = None
+            
+            # Redirect to dashboard
+            return rx.redirect("/dashboard")
+            
+        except Exception as e:
+            self.error_message = f"An error occurred: {str(e)}"
 
     def register(self):
-        """Registrar un nuevo usuario."""
-        if not all([self.username, self.email, self.password, self.confirm_password]):
-            self.error_message = "Todos los campos son obligatorios"
-            return
-
-        if self.password != self.confirm_password:
-            self.error_message = "Las contraseñas no coinciden"
-            return
-
-        with SessionLocal() as session:
-            if session.query(User).filter_by(username=self.username).first():
-                self.error_message = "El nombre de usuario ya existe"
+        """Handle registration."""
+        try:
+            # Input validation
+            if not all([self.username, self.email, self.password, self.confirm_password]):
+                self.error_message = "Please fill in all fields"
+                return
+                
+            if self.password != self.confirm_password:
+                self.error_message = "Passwords do not match"
+                return
+                
+            # Get database session
+            db = next(get_db())
+            
+            # Check if user exists
+            if db.query(User).filter(User.email == self.email).first():
+                self.error_message = "Email already registered"
+                return
+                
+            if db.query(User).filter(User.username == self.username).first():
+                self.error_message = "Username already taken"
                 return
             
-            if session.query(User).filter_by(email=self.email).first():
-                self.error_message = "El email ya está registrado"
-                return
-
+            # Create new user
             hashed_password = User.get_password_hash(self.password)
-            new_user = User(
+            user = User(
                 username=self.username,
                 email=self.email,
-                hashed_password=hashed_password,
-                is_active=True
+                hashed_password=hashed_password
             )
-            session.add(new_user)
-            try:
-                session.commit()
-                self.is_logged = True
-                self.error_message = ""
-                return rx.redirect("/dashboard")
-            except Exception:
-                session.rollback()
-                self.error_message = "Error al crear usuario"
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            # Set auth token
+            self.auth_token = str(user.id)
+            
+            # Clear form and error
+            self.username = ""
+            self.email = ""
+            self.password = ""
+            self.confirm_password = ""
+            self.error_message = None
+            
+            # Redirect to dashboard
+            return rx.redirect("/dashboard")
+            
+        except Exception as e:
+            self.error_message = f"An error occurred: {str(e)}"
+
+    def logout(self):
+        """Handle logout."""
+        self.auth_token = None
+        self.username = ""
+        self.email = ""
+        self.password = ""
+        self.confirm_password = ""
+        self.error_message = None
+        return rx.redirect("/login")
+
+    def is_authenticated(self) -> bool:
+        """Check if user is authenticated."""
+        return self.auth_token is not None
+
+    def require_auth(self):
+        """Redirect to login if not authenticated."""
+        if not self.is_authenticated():
+            return rx.redirect("/login")
