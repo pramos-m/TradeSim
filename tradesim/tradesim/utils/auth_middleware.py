@@ -1,24 +1,33 @@
-# utils/auth_middleware.py
+# auth_middleware.py
 import reflex as rx
-from ..state.auth_state import AuthState
 from functools import wraps
+from typing import Callable
+from ..state.auth_state import AuthState
 
-def require_auth(page_function):
-    """Authentication middleware decorator."""
+def require_auth(page_function: Callable) -> Callable:
+    """Middleware to require authentication for protected pages."""
     @wraps(page_function)
-    def wrapped_page():
+    def wrapped_page(*args, **kwargs):
         return rx.cond(
-            AuthState.is_logged,
-            page_function(),
+            AuthState.is_authenticated,
+            page_function(*args, **kwargs),
             rx.vstack(
-                rx.heading("Please log in to continue"),
-                rx.button(
-                    "Go to Login",
-                    on_click=lambda: rx.redirect("/login"),
-                    color_scheme="blue",
-                ),
-                spacing="4",
-                py="8",
+                rx.script("window.location.href = '/login'"),
+                rx.text("Redirecting to login..."),
+            )
+        )
+    return wrapped_page
+
+def public_only(page_function: Callable) -> Callable:
+    """Middleware to restrict access to public-only pages when authenticated."""
+    @wraps(page_function)
+    def wrapped_page(*args, **kwargs):
+        return rx.cond(
+            AuthState.is_authenticated,
+            rx.vstack(
+                rx.script("window.location.href = '/dashboard'"),
+                rx.text("Redirecting to dashboard..."),
             ),
+            page_function(*args, **kwargs)
         )
     return wrapped_page

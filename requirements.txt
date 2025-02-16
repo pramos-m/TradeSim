@@ -7,3 +7,5 @@ bcrypt
 cryptography
 passlib[bcrypt]
 python-multipart
+pydantic
+email-validator
