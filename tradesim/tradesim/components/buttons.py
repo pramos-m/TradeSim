@@ -1,5 +1,6 @@
 # tradesim/components/buttons.py
 import reflex as rx
+from ..state.auth_state import AuthState
 
 def navbar_button() -> rx.Component:
     """Botón de iniciar sesión con flecha."""
@@ -8,6 +9,7 @@ def navbar_button() -> rx.Component:
             "Iniciar Sesion",
             rx.icon("arrow-right", size=16),
         ),
+        on_click=lambda: AuthState.set_active_tab("login"),
         bg="white",
         color="black",
         border_radius="full",
@@ -33,6 +35,7 @@ def comenzar_button() -> rx.Component:
                 ml="2",
             ),
         ),
+        on_click=lambda: AuthState.set_active_tab("register"),
         bg="black",
         color="white",
         border_radius="full",

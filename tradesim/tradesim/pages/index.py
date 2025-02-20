@@ -1,13 +1,22 @@
 import reflex as rx
 from ..components.layouts.landing_layout import landing_layout
 from ..components.buttons import navbar_button, comenzar_button
+from ..state.auth_state import AuthState
+
+LOGO_IMAGE = "./logo.svg"
 
 def index_content() -> rx.Component:
     """Landing page content."""
     return rx.box(
+        rx.box(
+            rx.image(src="/logo.svg", height="200px"),
+            position="absolute",
+            top="0",
+            left="20px",
+        ),
+
         # Navbar
         rx.hstack(
-            rx.image(src="/logo.png", height="24px", width="auto"),
             rx.spacer(),
             rx.link(
                 navbar_button(),
