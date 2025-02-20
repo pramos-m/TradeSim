@@ -56,7 +56,7 @@ def login_form() -> rx.Component:
             ),
             rx.button(
                 "Iniciar Sesión",
-                on_click=AuthState.login,
+                # on_click=AuthState.login,
                 width="100%",
                 bg="#5271FF",
                 color="white",
@@ -152,7 +152,7 @@ def register_form() -> rx.Component:
             ),
             rx.button(
                 "Registrarse",
-                on_click=AuthState.register,
+                # on_click=AuthState.register,
                 width="100%",
                 bg="#5271FF",
                 color="white",

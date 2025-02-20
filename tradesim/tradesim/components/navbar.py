@@ -13,5 +13,5 @@ def navbar() -> rx.Component:
         width="100%",
         padding="4",
         background=colors["primary"],
-        color="white",
+        color="white", 
     )

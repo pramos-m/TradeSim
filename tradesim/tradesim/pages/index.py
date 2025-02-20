@@ -16,31 +16,72 @@ def index_content() -> rx.Component:
         ),
 
         # Navbar
-        rx.hstack(
-            rx.spacer(),
+        rx.box(
             rx.link(
                 navbar_button(),
                 href="/login",
             ),
-            width="100%",
-            padding="6",
+            position="absolute",
+            top="60px",      # Reducido de 100px a 70px para subirlo
+            right="70px",   # Se mantiene igual
             z_index="2",
         ),
         # Hero section
         rx.vstack(
             rx.box(
-                rx.heading(
-                    "Bienvenido\na TradeSim!!!",
-                    font_family="mono",
-                    size="7",
-                    white_space="pre-line",
-                    color="black",
-                    letter_spacing="tight",
+                rx.vstack(
+                    rx.box(
+                        rx.heading(
+                            "Bienvenido",
+                            font_family="mono",
+                            font_size="150px",
+                            white_space="nowrap",
+                            color="black",
+                            letter_spacing="tight",
+                            font_weight="bold",
+                        ),
+                        bg="white",
+                        padding="40",
+                        margin="0",
+                        border_top_left_radius="20px",     # Bordes redondeados solo arriba
+                        border_top_right_radius="20px",
+                        border_bottom_left_radius="0px",   # Sin bordes redondeados abajo
+                        border_bottom_right_radius="-20px",
+                        box_shadow="sm",
+                        width="750px",
+                        height="175px",        # Altura ajustada para el primer box
+                        text_align="center",
+                        justify_content="center",
+                        display="flex",
+                        align_items="center",
+                    ),
+                    rx.box(
+                        rx.heading(
+                            "a TradeSim!!!",
+                            font_family="mono",
+                            font_size="150px",
+                            white_space="nowrap",
+                            color="black",
+                            letter_spacing="tight",
+                            font_weight="bold",
+                        ),
+                        bg="white",
+                        padding="40",
+                        margin="0",
+                        border_top_left_radius="0px",      # Sin bordes redondeados arriba
+                        border_top_right_radius="20px",
+                        border_bottom_left_radius="20px",  # Bordes redondeados solo abajo
+                        border_bottom_right_radius="20px",
+                        box_shadow="sm",
+                        width="925px",
+                        height="175px",        # Altura ajustada para el segundo box
+                        text_align="center",
+                        justify_content="center",
+                        display="flex",
+                        align_items="center",
+                    ),
+                    spacing="0",              # Espacio entre los boxes
                 ),
-                bg="white",
-                padding="6",
-                border_radius="lg",
-                box_shadow="sm",
             ),
             rx.link(
                 comenzar_button(),
