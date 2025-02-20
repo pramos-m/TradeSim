@@ -1,19 +1,20 @@
-# /models/user.py
-from sqlalchemy import Column, String, Boolean, Float, Integer, DateTime
-from sqlalchemy.sql import func
-import bcrypt
+# models/user.py
+from sqlalchemy import Column, String, Numeric, CheckConstraint, Boolean
 from ..models.base import BaseModel
 
 class User(BaseModel):
     __tablename__ = "users"
-
-    username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
+    
+    email = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    profile_image = Column(String, nullable=True)
+    account_balance = Column(Numeric(10, 2), nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    profile_picture = Column(String(255), nullable=True, default="/default-profile.png")
-    balance = Column(Float, nullable=False, default=0.0)
-    initial_balance = Column(Float, nullable=False, default=0.0)
     is_active = Column(Boolean, default=True, nullable=False)
+    
+    __table_args__ = (
+        CheckConstraint('account_balance >= 0', name='check_account_balance_positive'),
+    )
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
