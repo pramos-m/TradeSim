@@ -14,21 +14,18 @@ def index_content() -> rx.Component:
             top="0",
             left="20px",
         ),
-
-        # Navbar
         rx.box(
             rx.link(
                 navbar_button(),
                 href="/login",
             ),
             position="absolute",
-            top="60px",      # Reducido de 100px a 70px para subirlo
-            right="70px",   # Se mantiene igual
+            top="60px",
+            right="70px",
             z_index="2",
         ),
-        # Hero section
         rx.vstack(
-            rx.box(
+             rx.box(
                 rx.vstack(
                     rx.box(
                         rx.heading(
@@ -43,13 +40,13 @@ def index_content() -> rx.Component:
                         bg="white",
                         padding="40",
                         margin="0",
-                        border_top_left_radius="20px",     # Bordes redondeados solo arriba
+                        border_top_left_radius="20px",
                         border_top_right_radius="20px",
-                        border_bottom_left_radius="0px",   # Sin bordes redondeados abajo
+                        border_bottom_left_radius="0px",
                         border_bottom_right_radius="-20px",
                         box_shadow="sm",
                         width="750px",
-                        height="175px",        # Altura ajustada para el primer box
+                        height="175px",
                         text_align="center",
                         justify_content="center",
                         display="flex",
@@ -68,19 +65,19 @@ def index_content() -> rx.Component:
                         bg="white",
                         padding="40",
                         margin="0",
-                        border_top_left_radius="0px",      # Sin bordes redondeados arriba
+                        border_top_left_radius="0px",
                         border_top_right_radius="20px",
-                        border_bottom_left_radius="20px",  # Bordes redondeados solo abajo
+                        border_bottom_left_radius="20px",
                         border_bottom_right_radius="20px",
                         box_shadow="sm",
                         width="925px",
-                        height="175px",        # Altura ajustada para el segundo box
+                        height="175px",
                         text_align="center",
                         justify_content="center",
                         display="flex",
                         align_items="center",
                     ),
-                    spacing="0",              # Espacio entre los boxes
+                    spacing="0",
                 ),
             ),
             rx.link(
@@ -109,3 +106,4 @@ index = rx.page(
     route="/",
     title="TradeSim - Inicio",
 )(index)
+

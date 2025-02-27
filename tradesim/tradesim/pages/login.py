@@ -1,13 +1,9 @@
-
-# gradient color for fields "#555555"
-# botones tipo no tienes cuenta? "#5271FF"
-
 import reflex as rx
 from ..state.auth_state import AuthState
 from ..utils.auth_middleware import public_only
 
 # Constantes para las imágenes
-BACKGROUND_IMAGE = "./background.png"
+BACKGROUND_IMAGE = "./registro.svg"
 LOGO_IMAGE = "./logo.svg"
 
 def login_form() -> rx.Component:
@@ -56,7 +52,7 @@ def login_form() -> rx.Component:
             ),
             rx.button(
                 "Iniciar Sesión",
-                # on_click=AuthState.login,
+                on_click=AuthState.login,
                 width="100%",
                 bg="#5271FF",
                 color="white",
@@ -152,7 +148,7 @@ def register_form() -> rx.Component:
             ),
             rx.button(
                 "Registrarse",
-                # on_click=AuthState.register,
+                on_click=AuthState.register,
                 width="100%",
                 bg="#5271FF",
                 color="white",
@@ -191,7 +187,6 @@ def login_page() -> rx.Component:
                 height="100vh",
                 object_fit="cover",
                 z_index="-1",
-                border="2px solid red",  # Borde temporal para depuración
             ),
         ),
         # Logo en la esquina superior izquierda
@@ -220,6 +215,13 @@ def login_page() -> rx.Component:
         width="100vw",
         height="100vh",
         position="relative",
-        background="url('/background.png')",
+        background="url('/registro.svg')",
         background_size="cover",
     )
+
+# Configuración de la página
+login = rx.page(
+    route="/login",
+    title="TradeSim - Login",
+    on_load=AuthState.on_load
+)(login_page)

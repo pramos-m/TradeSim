@@ -1,3 +1,3 @@
-from .base_state import State
+from .auth_state import AuthState
 
-__all__ = ['State']
+__all__ = ['AuthState']

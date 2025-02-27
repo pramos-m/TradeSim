@@ -26,7 +26,7 @@ button_styles = {
 }
 
 landing_styles = {
-    "background_image": "url('/home.png')",
+    "background_image": "url('/home.svg')",
     "background_size": "cover",
     "background_position": "center",
     "min_height": "100vh",

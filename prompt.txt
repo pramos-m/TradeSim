@@ -1,0 +1,2193 @@
+Eres la mayor eminencia en dubbing de  logins y autenticación en reflex y sql. Además, asesor y profesor en Harvard. Me ayudarás a solucionar el mayor problema de mi estancamiento en mi proyecto de fin de grado de ingeniería informática
+
+Hoy es el día que vamos a finalizar mi log in page y registro! He estado trabajando muy duro en elloo, pero no cosngio que funcione bien, ya que se queda en bucle entre el login y el dashbaord. haz las correcciones pertinentes.
+
+Elimina o reduce todo lo que consideres necesario. El objetivo es que el login funcione con sus rutas protegidas, la complejidad de ese sistema me da absolutamente igual.
+
+Ya he provado sin el rx.cookie pero reflex necesita el cookie para funcionar (si no te devuelve "Error: No reflex attribute set_cookie
+
+"). Por lo que lo que me interesa es que el login funcione con sus rutas protegidas. Sin embargo, no me interesa que se quede en bucle entre el login y el dashboard. Por lo que hbusca que es lo que puede
+
+aunque ahora me dice no has iniciado sesion... redirigiendo.
+main.py:
+
+
+import reflex as rx
+from .database import Base, engine
+Base.metadata.create_all(bind=engine)
+
+
+init.py:
+
+import reflex as rx
+from .database import init_db
+
+init_db()
+
+# Create the application
+app = rx.App()
+
+from .pages.index import index
+from .pages.dashboard import dashboard
+from .pages.login import login
+
+from .state.auth_state import AuthState
+
+app.add_page(index)  # Ruta "/" definida en index.py
+app.add_page(dashboard)  # Ruta "/dashboard" definida en dashboard.py
+app.add_page(login)  # Ruta "/login" definida en login.py
+
+app.state = AuthState
+
+__all__ = ["app"]
+
+/utils/auth_middleware.py:
+import reflex as rx
+from functools import wraps
+from typing import Callable
+from ..state.auth_state import AuthState
+
+def require_auth(page_function: Callable) -> Callable:
+    """Decorator to protect routes that require authentication."""
+    @wraps(page_function)
+    def wrapped_page(*args, **kwargs):
+        # Componente a renderizar si el usuario está autenticado
+        def render_protected_page():
+            return page_function(*args, **kwargs)
+        
+        # Componente a renderizar si el usuario NO está autenticado
+        def render_login_redirect():
+            return rx.center(
+                rx.vstack(
+                    rx.text("No has iniciado sesión. Redirigiendo al login...", color="red.500"),
+                    rx.html("""
+                    <script>
+                        // Evitar redirecciones múltiples
+                        if (!sessionStorage.getItem('redirecting_to_login')) {
+                            sessionStorage.setItem('redirecting_to_login', 'true');
+                            setTimeout(function() {
+                                window.location.href = '/login';
+                                sessionStorage.removeItem('redirecting_to_login');
+                            }, 500);
+                        }
+                    </script>
+                    """)
+                ),
+                height="100vh",
+            )
+        
+        # Evaluar la condición y llamar a la función correspondiente
+        return rx.cond(
+            AuthState.is_authenticated,
+            render_protected_page(),
+            render_login_redirect()
+        )
+    
+    return wrapped_page
+
+def public_only(page_function: Callable) -> Callable:
+    """Middleware for public pages."""
+    @wraps(page_function)
+    def wrapped_page(*args, **kwargs):
+        # Componente a renderizar si el usuario está autenticado
+        def render_dashboard_redirect():
+            return rx.center(
+                rx.vstack(
+                    rx.text("Ya has iniciado sesión. Redirigiendo al dashboard...", color="blue.500"),
+                    rx.html("""
+                    <script>
+                        // Evitar redirecciones múltiples
+                        if (!sessionStorage.getItem('redirecting_to_dashboard')) {
+                            sessionStorage.setItem('redirecting_to_dashboard', 'true');
+                            setTimeout(function() {
+                                window.location.href = '/dashboard';
+                                sessionStorage.removeItem('redirecting_to_dashboard');
+                            }, 500);
+                        }
+                    </script>
+                    """)
+                ),
+                height="100vh",
+            )
+        
+        # Componente a renderizar si el usuario NO está autenticado
+        def render_public_page():
+            return page_function(*args, **kwargs)
+        
+        # Evaluar la condición y llamar a la función correspondiente
+        return rx.cond(
+            AuthState.is_authenticated,
+            render_dashboard_redirect(),
+            render_public_page()
+        )
+    
+    return wrapped_page
+
+/state/auth_state.py:
+import reflex as rx
+from typing import List
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+import os
+from ..database import get_db
+from ..models.user import User
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+class AuthState(rx.State):
+    """Estado de autenticación mejorado."""
+    
+    # Form fields
+    username: str = ""
+    email: str = ""
+    password: str = ""
+    confirm_password: str = ""
+    
+    # UI state
+    active_tab: str = "login"
+    error_message: str = ""
+    is_authenticated: bool = False
+    loading: bool = False
+    processed_token: bool = False  # Bandera para evitar verificaciones repetidas
+
+    # Token cookie
+    auth_token: rx.Cookie = rx.Cookie(name="auth_token", max_age=1800)
+    
+    def on_load(self) -> None:
+        """Verificar autenticación cuando se carga la página."""
+        # Solo verificamos si no hemos procesado el token aún
+        if not self.processed_token and self.auth_token:
+            username = self.verify_token(self.auth_token)
+            if username:
+                self.is_authenticated = True
+                self.username = username
+            else:
+                self.is_authenticated = False
+                # Limpiamos la cookie si el token no es válido
+                return rx.clear_cookie("auth_token")
+            
+            # Marcamos que ya procesamos el token
+            self.processed_token = True
+
+    def create_access_token(self, username: str) -> str:
+        """Crear token JWT."""
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        return jwt.encode(
+            {"sub": username, "exp": expire},
+            SECRET_KEY,
+            algorithm=ALGORITHM
+        )
+
+    def verify_token(self, token: str) -> str:
+        """Verificar token JWT."""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            return payload.get("sub")
+        except JWTError:
+            return None
+
+    def set_email(self, email: str) -> None:
+        """Establecer el email del usuario."""
+        self.email = email
+
+    def set_password(self, password: str) -> None:
+        """Establecer la contraseña del usuario."""
+        self.password = password
+
+    def set_username(self, username: str) -> None:
+        """Establecer el nombre de usuario."""
+        self.username = username
+
+    def set_confirm_password(self, confirm_password: str) -> None:
+        """Establecer la confirmación de contraseña."""
+        self.confirm_password = confirm_password
+
+    def login(self) -> List[rx.event.Event]:
+        """Proceso de login mejorado."""
+        self.loading = True
+        
+        if not self.email or not self.password:
+            self.error_message = "Complete todos los campos"
+            self.loading = False
+            return []
+
+        try:
+            db = next(get_db())
+            user = db.query(User).filter(User.email == self.email).first()
+            
+            if not user or not User.verify_password(self.password, user.hashed_password):
+                self.error_message = "Credenciales inválidas"
+                self.loading = False
+                return []
+
+            token = self.create_access_token(user.username)
+            self.is_authenticated = True
+            self.username = user.username
+            self.processed_token = True  # Marcar que hemos procesado el token
+            self.loading = False
+            
+            # Establecer cookie primero, luego redirigir
+            return [
+                rx.set_cookie("auth_token", token, max_age=1800),
+                rx.redirect("/dashboard")
+            ]
+            
+        except Exception as e:
+            self.error_message = f"Error: {str(e)}"
+            self.loading = False
+            return []
+
+    def register(self) -> List[rx.event.Event]:
+        """Proceso de registro mejorado."""
+        self.loading = True
+        
+        if not all([self.username, self.email, self.password, self.confirm_password]):
+            self.error_message = "Complete todos los campos"
+            self.loading = False
+            return []
+
+        if self.password != self.confirm_password:
+            self.error_message = "Las contraseñas no coinciden"
+            self.loading = False
+            return []
+
+        try:
+            db = next(get_db())
+            if db.query(User).filter(User.email == self.email).first():
+                self.error_message = "Email ya registrado"
+                self.loading = False
+                return []
+            
+            if db.query(User).filter(User.username == self.username).first():
+                self.error_message = "Nombre de usuario ya registrado"
+                self.loading = False
+                return []
+            
+            new_user = User(
+                username=self.username,
+                email=self.email,
+                hashed_password=User.get_password_hash(self.password),
+                balance=10000.0,
+                initial_balance=10000.0,
+                is_active=True
+            )
+            
+            db.add(new_user)
+            db.commit()
+
+            token = self.create_access_token(new_user.username)
+            self.is_authenticated = True
+            self.processed_token = True  # Marcar que hemos procesado el token
+            self.loading = False
+            
+            return [
+                rx.set_cookie("auth_token", token, max_age=1800),
+                rx.redirect("/dashboard")
+            ]
+            
+        except Exception as e:
+            self.error_message = f"Error: {str(e)}"
+            self.loading = False
+            return []
+
+    def logout(self) -> List[rx.event.Event]:
+        """Proceso de logout mejorado."""
+        self.is_authenticated = False
+        self.username = ""
+        self.email = ""
+        self.password = ""
+        self.confirm_password = ""
+        self.processed_token = False  # Reiniciar para la próxima verificación
+        
+        # Eliminar cookie y redirigir - Corregido el método de localStorage
+        return [
+            rx.clear_local_storage(),  # Método correcto sin argumentos
+            rx.clear_cookie("auth_token"),
+            rx.redirect("/")
+        ]
+
+    def set_active_tab(self, tab: str) -> None:
+        """Cambiar entre login/registro."""
+        self.active_tab = tab
+        self.error_message = ""
+
+/pages/login.py
+import reflex as rx
+from ..state.auth_state import AuthState
+from ..utils.auth_middleware import public_only
+
+@public_only
+def login_page() -> rx.Component:
+    """Página simplificada de login."""
+    return rx.center(
+        rx.vstack(
+            rx.image(src="/logo.svg", height="120px", margin_bottom="4"),
+            rx.cond(
+                AuthState.active_tab == "login",
+                # Login Form
+                rx.vstack(
+                    rx.heading("Iniciar Sesión", size="9", margin_bottom="4"),
+                    rx.cond(
+                        AuthState.error_message != "",
+                        rx.text(
+                            AuthState.error_message,
+                            color="red.500",
+                            font_size="sm",
+                        ),
+                    ),
+                    rx.input(
+                        placeholder="Email",
+                        value=AuthState.email,
+                        on_change=AuthState.set_email,
+                        width="100%",
+                        margin_bottom="3",
+                    ),
+                    rx.input(
+                        type_="password",
+                        placeholder="Contraseña",
+                        value=AuthState.password,
+                        on_change=AuthState.set_password,
+                        width="100%",
+                        margin_bottom="4",
+                    ),
+                    rx.button(
+                        "Iniciar Sesión",
+                        on_click=AuthState.login,
+                        width="100%",
+                        color_scheme="blue",
+                        margin_bottom="2",
+                        is_loading=AuthState.loading,
+                    ),
+                    rx.link(
+                        "¿No tienes cuenta? Regístrate",
+                        on_click=lambda: AuthState.set_active_tab("register"),
+                        color="blue.500",
+                        font_size="sm",
+                    ),
+                    width="100%",
+                    max_width="400px",
+                    spacing="3",
+                    padding="6",
+                    border_radius="md",
+                    box_shadow="lg",
+                    background="white",
+                ),
+                
+                # Register Form
+                rx.vstack(
+                    rx.heading("Registro", size="9", margin_bottom="4"),
+                    rx.cond(
+                        AuthState.error_message != "",
+                        rx.text(
+                            AuthState.error_message,
+                            color="red.500",
+                            font_size="sm",
+                        ),
+                    ),
+                    rx.input(
+                        placeholder="Nombre de usuario",
+                        value=AuthState.username,
+                        on_change=AuthState.set_username,
+                        width="100%",
+                        margin_bottom="3",
+                    ),
+                    rx.input(
+                        placeholder="Email",
+                        value=AuthState.email,
+                        on_change=AuthState.set_email,
+                        width="100%",
+                        margin_bottom="3",
+                    ),
+                    rx.input(
+                        type_="password",
+                        placeholder="Contraseña",
+                        value=AuthState.password,
+                        on_change=AuthState.set_password,
+                        width="100%",
+                        margin_bottom="3",
+                    ),
+                    rx.input(
+                        type_="password",
+                        placeholder="Confirmar contraseña",
+                        value=AuthState.confirm_password,
+                        on_change=AuthState.set_confirm_password,
+                        width="100%",
+                        margin_bottom="4",
+                    ),
+                    rx.button(
+                        "Registrarse",
+                        on_click=AuthState.register,
+                        width="100%",
+                        color_scheme="blue",
+                        margin_bottom="2",
+                        is_loading=AuthState.loading,
+                    ),
+                    rx.link(
+                        "¿Ya tienes cuenta? Inicia Sesión",
+                        on_click=lambda: AuthState.set_active_tab("login"),
+                        color="blue.500",
+                        font_size="sm",
+                    ),
+                    width="100%",
+                    max_width="400px",
+                    spacing="3",
+                    padding="6",
+                    border_radius="md",
+                    box_shadow="lg",
+                    background="white",
+                ),
+            ),
+            max_width="450px",
+            width="100%",
+            padding="4",
+            spacing="6",
+        ),
+        width="100%",
+        height="100vh",
+        background="linear-gradient(to right, #f5f7fa, #c3cfe2)",
+    )
+
+# Configuración de la página
+login = rx.page(
+    route="/login",
+    title="TradeSim - Login",
+    on_load=AuthState.on_load,  # Cambiado de check_auth a on_load
+)(login_page)
+
+
+/pages/index.py
+import reflex as rx
+from ..components.layouts.landing_layout import landing_layout
+from ..components.buttons import navbar_button, comenzar_button
+from ..state.auth_state import AuthState
+from ..utils.auth_middleware import public_only
+
+LOGO_IMAGE = "./logo.svg"
+
+def index_content() -> rx.Component:
+    """Landing page content."""
+    return rx.box(
+        rx.box(
+            rx.image(src="/logo.svg", height="200px"),
+            position="absolute",
+            top="0",
+            left="20px",
+        ),
+        rx.box(
+            rx.link(
+                navbar_button(),
+                href="/login",
+            ),
+            position="absolute",
+            top="60px",
+            right="70px",
+            z_index="2",
+        ),
+        rx.vstack(
+            rx.box(
+                rx.vstack(
+                    rx.box(
+                        rx.heading(
+                            "Bienvenido",
+                            font_family="mono",
+                            font_size="150px",
+                            white_space="nowrap",
+                            color="black",
+                            letter_spacing="tight",
+                            font_weight="bold",
+                        ),
+                        bg="white",
+                        padding="40",
+                        margin="0",
+                        border_top_left_radius="20px",
+                        border_top_right_radius="20px",
+                        border_bottom_left_radius="0px",
+                        border_bottom_right_radius="-20px",
+                        box_shadow="sm",
+                        width="750px",
+                        height="175px",
+                        text_align="center",
+                        justify_content="center",
+                        display="flex",
+                        align_items="center",
+                    ),
+                    rx.box(
+                        rx.heading(
+                            "a TradeSim!!!",
+                            font_family="mono",
+                            font_size="150px",
+                            white_space="nowrap",
+                            color="black",
+                            letter_spacing="tight",
+                            font_weight="bold",
+                        ),
+                        bg="white",
+                        padding="40",
+                        margin="0",
+                        border_top_left_radius="0px",
+                        border_top_right_radius="20px",
+                        border_bottom_left_radius="20px",
+                        border_bottom_right_radius="20px",
+                        box_shadow="sm",
+                        width="925px",
+                        height="175px",
+                        text_align="center",
+                        justify_content="center",
+                        display="flex",
+                        align_items="center",
+                    ),
+                    spacing="0",
+                ),
+            ),
+            rx.link(
+                comenzar_button(),
+                href="/login",
+            ),
+            spacing="8",
+            align_items="flex-start",
+            padding_top="16",
+            padding_x="6",
+            position="absolute",
+            top="25%",
+            left="10%",
+        ),
+        width="100%",
+        height="100vh",
+        position="relative",
+    )
+
+@public_only
+def index() -> rx.Component:
+    """Landing page with layout."""
+    return landing_layout(index_content())
+
+index = rx.page(
+    route="/",
+    title="TradeSim - Inicio",
+    on_load=AuthState.on_load
+)(index)
+
+/pages/dashboard.py
+import reflex as rx
+from ..state.auth_state import AuthState
+from ..utils.auth_middleware import require_auth
+
+@require_auth
+def dashboard_page() -> rx.Component:
+    """Dashboard simple protegido por autenticación."""
+    return rx.vstack(
+        rx.box(
+            rx.hstack(
+                rx.image(src="/logo.svg", height="50px"),
+                rx.spacer(),
+                rx.text(f"Usuario: {AuthState.username}", margin_right="4"),
+                rx.button(
+                    "Cerrar Sesión",
+                    on_click=AuthState.logout,
+                    color_scheme="red",
+                ),
+                width="100%",
+                padding="4",
+                border_bottom="1px solid",
+                border_color="gray.200",
+            ),
+        ),
+        rx.center(
+            rx.vstack(
+                rx.heading(f"Bienvenido, {AuthState.username}!", size="9"),
+                rx.text("Has iniciado sesión correctamente en TradeSim.", margin_y="4"),
+                rx.flex(
+                    rx.box(
+                        rx.heading("Balance Actual", size="9"),
+                        rx.heading("$10,000.00", size="9"),
+                        rx.text("Balance inicial", color="gray.500"),
+                        padding="4",
+                        border="1px solid",
+                        border_color="gray.200",
+                        border_radius="md",
+                    ),
+                ),
+                spacing="6",
+                padding="8",
+                border_radius="lg",
+                box_shadow="xl",
+                background="white",
+                width="80%",
+                max_width="800px",
+            ),
+            width="100%",
+            padding_y="8",
+        ),
+        width="100%",
+        min_height="100vh",
+        background="gray.50",
+    )
+
+# Asegúrate de que el on_load esté correctamente configurado
+dashboard = rx.page(
+    route="/dashboard",
+    title="TradeSim - Dashboard",
+    on_load=AuthState.on_load
+)(dashboard_page)
+
+
+# models/__init__.py
+from .base import BaseModel
+from .user import User
+from .sector import Sector
+from .stock import Stock
+from .transaction import Transaction
+
+__all__ = ['BaseModel', 'User', 'Sector', 'Stock', 'Transaction']
+
+
+/models/base.py:
+
+# models/base.py
+from sqlalchemy import Column, Integer, DateTime
+from datetime import datetime
+from ..database import Base
+
+class BaseModel(Base):
+    __abstract__ = True
+    
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+/models/user.py:
+
+# models/user.py
+from sqlalchemy import Column, String, Numeric, CheckConstraint, Boolean
+from ..models.base import BaseModel
+import bcrypt  # Importar bcrypt aquí
+
+class User(BaseModel):
+    __tablename__ = "users"
+    
+    email = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    profile_image = Column(String, nullable=True)
+    balance = Column(Numeric(10, 2), nullable=False)  # Cambiado de account_balance a balance
+    initial_balance = Column(Numeric(10, 2), nullable=False)  # Añadido initial_balance
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    __table_args__ = (
+        CheckConstraint('balance >= 0', name='check_balance_positive'),
+    )
+
+    @staticmethod
+    def verify_password(plain_password: str, hashed_password: str) -> bool:
+        """Verify a password against its hash."""
+        try:
+            # Convert plain_password to bytes if it's not already
+            if isinstance(plain_password, str):
+                plain_password = plain_password.encode('utf-8')
+            
+            # Convert hashed_password to bytes if it's not already
+            if isinstance(hashed_password, str):
+                hashed_password = hashed_password.encode('utf-8')
+                
+            return bcrypt.checkpw(plain_password, hashed_password)
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_password_hash(password: str) -> str:
+        """Generate password hash."""
+        if not password:
+            raise ValueError("Password cannot be empty")
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        
+        # Convert password to bytes if it's not already
+        if isinstance(password, str):
+            password = password.encode('utf-8')
+            
+        # Generate salt and hash password
+        salt = bcrypt.gensalt(12)
+        hashed = bcrypt.hashpw(password, salt)
+        
+        # Return hash as string
+        return hashed.decode('utf-8')
+
+    def to_dict(self, include_sensitive: bool = False):
+        """Convert user object to dictionary excluding sensitive data."""
+        base_dict = {
+            "id": self.id,
+            "username": self.username,
+            "profile_image": self.profile_image,  # Cambiado de profile_picture
+            "balance": float(self.balance),
+            "initial_balance": float(self.initial_balance),
+            "is_active": self.is_active,
+            "created_at": self.created_at
+        }
+        
+        if include_sensitive:
+            base_dict["email"] = self.email
+            
+        return base_dict
+
+/controller/user.py:
+
+# crud/user.py
+from sqlalchemy.orm import Session
+from ..models.user import User
+from decimal import Decimal
+from typing import Optional, List
+
+def get_user(db: Session, user_id: int):
+    return db.query(User).filter(User.id == user_id).first()
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
+
+def get_user_by_username(db: Session, username: str):
+    return db.query(User).filter(User.username == username).first()
+
+def get_users(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(User).offset(skip).limit(limit).all()
+
+def create_user(db: Session, email: str, username: str, profile_image: Optional[str] = None):
+    db_user = User(
+        email=email,
+        username=username,
+        profile_image=profile_image,
+        account_balance=Decimal("0.00")
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def update_user(db: Session, user_id: int, **kwargs):
+    db_user = get_user(db, user_id)
+    if db_user:
+        for key, value in kwargs.items():
+            setattr(db_user, key, value)
+        db.commit()
+        db.refresh(db_user)
+    return db_user
+
+def update_balance(db: Session, user_id: int, amount: Decimal):
+    db_user = get_user(db, user_id)
+    if db_user:
+        db_user.account_balance += amount
+        db.commit()
+        db.refresh(db_user)
+    return db_user
+
+def delete_user(db: Session, user_id: int):
+    db_user = get_user(db, user_id)
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+        return True
+    return False
+
+
+
+He encontrado un ejemplo de login en github de hace 6 meses pero actualizado a la versión actual de 0.7.1, por lo que podemos coger ideas de que me falta., así que te voy a enviar los archivos para que te hagas una idea y saquemos conclusiones.
+
+custom_user_info.py:
+
+from typing import Any, Optional
+
+import reflex as rx
+
+import reflex_local_auth
+
+import sqlmodel
+
+from reflex_local_auth.pages.components import MIN_WIDTH, PADDING_TOP, input_100w
+
+class UserInfo(rx.Model, table=True):
+
+    email: str
+
+    created_from_ip: str
+
+    user_id: int = sqlmodel.Field(foreign_key="localuser.id")
+
+class MyLocalAuthState(reflex_local_auth.LocalAuthState):
+
+    @rx.var(cache=True)
+
+    def authenticated_user_info(self) -> Optional[UserInfo]:
+
+        if self.authenticated_user.id is not None and self.authenticated_user.id < 0:
+
+            return
+
+        with rx.session() as session:
+
+            return session.exec(
+
+                sqlmodel.select(UserInfo).where(
+
+                    UserInfo.user_id == self.authenticated_user.id
+
+                ),
+
+            ).one_or_none()
+
+class MyRegisterState(reflex_local_auth.RegistrationState):
+
+    @rx.event
+
+    def handle_registration_email(self, form_data: dict[str, Any]):
+
+        registration_result = self.handle_registration(form_data)
+
+        if self.new_user_id >= 0:
+
+            with rx.session() as session:
+
+                session.add(
+
+                    UserInfo(
+
+                        email=form_data["email"],
+
+                        created_from_ip=getattr(
+
+                            self.router.headers,
+
+                            "x_forwarded_for",
+
+                            self.router.session.client_ip,
+
+                        ),
+
+                        user_id=self.new_user_id,
+
+                    )
+
+                )
+
+                session.commit()
+
+        return registration_result
+
+def register_error() -> rx.Component:
+
+    """Render the registration error message."""
+
+    return rx.cond(
+
+        reflex_local_auth.RegistrationState.error_message != "",
+
+        rx.callout(
+
+            reflex_local_auth.RegistrationState.error_message,
+
+            icon="triangle_alert",
+
+            color_scheme="red",
+
+            role="alert",
+
+            width="100%",
+
+        ),
+
+    )
+
+def register_form() -> rx.Component:
+
+    """Render the registration form."""
+
+    return rx.form(
+
+        rx.vstack(
+
+            rx.heading("Create an account with Email and IP tracking", size="7"),
+
+            register_error(),
+
+            rx.text("Username"),
+
+            input_100w("username"),
+
+            rx.text("Email"),
+
+            input_100w("email"),
+
+            rx.text("Password"),
+
+            input_100w("password", type="password"),
+
+            rx.text("Confirm Password"),
+
+            input_100w("confirm_password", type="password"),
+
+            rx.button("Sign up", width="100%"),
+
+            rx.center(
+
+                rx.link(
+
+                    "Login",
+
+                    on_click=lambda: rx.redirect(reflex_local_auth.routes.LOGIN_ROUTE),
+
+                ),
+
+                width="100%",
+
+            ),
+
+            min_width=MIN_WIDTH,
+
+        ),
+
+        on_submit=MyRegisterState.handle_registration_email,
+
+    )
+
+@rx.page(route="/custom-register")
+
+def register_page() -> rx.Component:
+
+    """Render the registration page.
+
+    Returns:
+
+        A reflex component.
+
+    """
+
+    return rx.center(
+
+        rx.cond(
+
+            reflex_local_auth.RegistrationState.success,
+
+            rx.vstack(
+
+                rx.text("Registration successful!"),
+
+            ),
+
+            rx.card(register_form()),
+
+        ),
+
+        padding_top=PADDING_TOP,
+
+    )
+
+@rx.page()
+
+@reflex_local_auth.require_login
+
+def user_info():
+
+    return rx.vstack(
+
+        rx.text(f"Username: {MyLocalAuthState.authenticated_user.username}"),
+
+        rx.cond(
+
+            MyLocalAuthState.authenticated_user_info,
+
+            rx.fragment(
+
+                rx.text(f"Email: {MyLocalAuthState.authenticated_user_info.email}"),
+
+                rx.text(
+
+                    f"Account Created From: {MyLocalAuthState.authenticated_user_info.created_from_ip}"
+
+                ),
+
+            ),
+
+            rx.text(f"No extra UserInfo for {MyLocalAuthState.authenticated_user.id}"),
+
+        ),
+
+        align="center",
+
+    )
+
+local_auth_demo.py:
+
+"""Main app module to demo local authentication."""
+
+import reflex as rx
+
+import reflex_local_auth
+
+from . import custom_user_info as custom_user_info
+
+def links() -> rx.Component:
+
+    """Render the links for the demo."""
+
+    return rx.fragment(
+
+        rx.link("Home", href="/"),
+
+        rx.link("Need 2 Login", href="/need2login"),
+
+        rx.link("Protected Page", href="/protected"),
+
+        rx.link("Custom Register", href="/custom-register"),
+
+        rx.link("User Info", href="/user-info"),
+
+        rx.cond(
+
+            reflex_local_auth.LocalAuthState.is_authenticated,
+
+            rx.link(
+
+                "Logout",
+
+                href="/",
+
+                on_click=reflex_local_auth.LocalAuthState.do_logout,
+
+            ),
+
+            rx.link("Login", href=reflex_local_auth.routes.LOGIN_ROUTE),
+
+        ),
+
+    )
+
+@rx.page()
+
+def index() -> rx.Component:
+
+    """Render the index page.
+
+    Returns:
+
+        A reflex component.
+
+    """
+
+    return rx.fragment(
+
+        rx.color_mode.button(position="top-right"),
+
+        rx.vstack(
+
+            rx.heading("Welcome to my homepage!", font_size="2em"),
+
+            links(),
+
+            spacing="2",
+
+            padding_top="10%",
+
+            align="center",
+
+        ),
+
+    )
+
+@rx.page()
+
+@reflex_local_auth.require_login
+
+def need2login():
+
+    return rx.vstack(
+
+        rx.heading(
+
+            "Accessing this page will redirect to the login page if not authenticated."
+
+        ),
+
+        links(),
+
+        spacing="2",
+
+        padding_top="10%",
+
+        align="center",
+
+    )
+
+class ProtectedState(reflex_local_auth.LocalAuthState):
+
+    data: str
+
+    @rx.event
+
+    def on_load(self):
+
+        if not self.is_authenticated:
+
+            return reflex_local_auth.LoginState.redir
+
+        self.data = f"This is truly private data for {self.authenticated_user.username}"
+
+    @rx.event
+
+    def do_logout(self):
+
+        self.data = ""
+
+        return reflex_local_auth.LocalAuthState.do_logout
+
+@rx.page(on_load=ProtectedState.on_load)
+
+@reflex_local_auth.require_login
+
+def protected():
+
+    return rx.vstack(
+
+        rx.heading(ProtectedState.data),
+
+        links(),
+
+        spacing="2",
+
+        padding_top="10%",
+
+        align="center",
+
+    )
+
+app = rx.App(theme=rx.theme(has_background=True, accent_color="orange"))
+
+app.add_page(
+
+    reflex_local_auth.pages.login_page,
+
+    route=reflex_local_auth.routes.LOGIN_ROUTE,
+
+    title="Login",
+
+)
+
+app.add_page(
+
+    reflex_local_auth.pages.register_page,
+
+    route=reflex_local_auth.routes.REGISTER_ROUTE,
+
+    title="Register",
+
+)
+
+# Create the database if it does not exist (hosting service does not migrate automatically)
+
+rx.Model.migrate()
+
+rxconfig.py:
+
+import reflex as rx
+
+config = rx.Config(
+
+    app_name="local_auth_demo",
+
+)
+
+requirements.txt: reflex>=0.6.0a3
+
+reflex-chakra>=0.6.0a
+
+reflex_local_auth>=0.2.0
+
+user.py:
+
+from future import annotations
+
+import bcrypt
+
+import reflex as rx
+
+from sqlmodel import Field, String
+
+class LocalUser(
+
+    rx.Model,
+
+    table=True,  # type: ignore
+
+):
+
+    """A local User model with bcrypt password hashing."""
+
+    username: str = Field(
+
+        unique=True,
+
+        nullable=False,
+
+        index=True,
+
+        sa_type=String(255),  # pyright: ignore[reportArgumentType]
+
+    )
+
+    password_hash: bytes = Field(nullable=False)
+
+    enabled: bool = False
+
+    @staticmethod
+
+    def hash_password(secret: str) -> bytes:
+
+        """Hash the secret using bcrypt.
+
+        Args:
+
+            secret: The password to hash.
+
+        Returns:
+
+            The hashed password.
+
+        """
+
+        return bcrypt.hashpw(
+
+            password=secret.encode("utf-8"),
+
+            salt=bcrypt.gensalt(),
+
+        )
+
+    def verify(self, secret: str) -> bool:
+
+        """Validate the user's password.
+
+        Args:
+
+            secret: The password to check.
+
+        Returns:
+
+            True if the hashed secret matches this user's password_hash.
+
+        """
+
+        return bcrypt.checkpw(
+
+            password=secret.encode("utf-8"),
+
+            hashed_password=self.password_hash,
+
+        )
+
+    def dict(self, args, *kwargs) -> dict:
+
+        """Return a dictionary representation of the user."""
+
+        d = super().dict(*args, **kwargs)
+
+        # Never return the hash when serializing to the frontend.
+
+        d.pop("password_hash", None)
+
+        return d
+
+routes.py:
+
+from future import annotations
+
+LOGIN_ROUTE = "/login"
+
+REGISTER_ROUTE = "/register"
+
+def set_login_route(route: str) -> None:
+
+    """Set the login route.
+
+    Args:
+
+        route: The route to set as the login route.
+
+    """
+
+    global LOGIN_ROUTE
+
+    LOGIN_ROUTE = route
+
+def set_register_route(route: str) -> None:
+
+    """Set the register route.
+
+    Args:
+
+        route: The route to set as the register route.
+
+    """
+
+    global REGISTER_ROUTE
+
+    REGISTER_ROUTE = route
+
+registration.py:
+
+"""New user registration validation and database logic."""
+
+from future import annotations
+
+import asyncio
+
+from typing import Any
+
+import reflex as rx
+
+from reflex.event import EventSpec
+
+from sqlmodel import select
+
+from . import routes
+
+from .local_auth import LocalAuthState
+
+from .user import LocalUser
+
+POST_REGISTRATION_DELAY = 0.5
+
+class RegistrationState(LocalAuthState):
+
+    """Handle registration form submission and redirect to login page after registration."""
+
+    success: bool = False
+
+    error_message: str = ""
+
+    new_user_id: int = -1
+
+    def validatefields(
+
+        self, username, password, confirm_password
+
+    ) -> EventSpec | list[EventSpec] | None:
+
+        if not username:
+
+            self.error_message = "Username cannot be empty"
+
+            return rx.set_focus("username")
+
+        with rx.session() as session:
+
+            existing_user = session.exec(
+
+                select(LocalUser).where(LocalUser.username == username)
+
+            ).one_or_none()
+
+        if existing_user is not None:
+
+            self.error_message = (
+
+                f"Username {username} is already registered. Try a different name"
+
+            )
+
+            return [rx.set_value("username", ""), rx.set_focus("username")]
+
+        if not password:
+
+            self.error_message = "Password cannot be empty"
+
+            return rx.set_focus("password")
+
+        if password != confirm_password:
+
+            self.error_message = "Passwords do not match"
+
+            return [
+
+                rx.set_value("confirm_password", ""),
+
+                rx.set_focus("confirm_password"),
+
+            ]
+
+    def registeruser(self, username, password) -> None:
+
+        with rx.session() as session:
+
+            # Create the new user and add it to the database.
+
+            new_user = LocalUser()  # type: ignore
+
+            new_user.username = username
+
+            new_user.password_hash = LocalUser.hash_password(password)
+
+            new_user.enabled = True
+
+            session.add(new_user)
+
+            session.commit()
+
+            session.refresh(new_user)
+
+            if new_user.id is not None:
+
+                self.new_user_id = new_user.id
+
+    @rx.event
+
+    def handle_registration(
+
+        self,
+
+        form_data: dict[str, Any],
+
+    ):
+
+        """Handle registration form on_submit.
+
+        Set error_message appropriately based on validation results.
+
+        Args:
+
+            form_data: A dict of form fields and values.
+
+        """
+
+        username = form_data["username"]
+
+        password = form_data["password"]
+
+        validation_errors = self._validate_fields(
+
+            username, password, form_data["confirm_password"]
+
+        )
+
+        if validation_errors:
+
+            self.new_user_id = -1
+
+            return validation_errors
+
+        self._register_user(username, password)
+
+        return type(self).successful_registration
+
+    @rx.event
+
+    def set_success(self, success: bool):
+
+        """Set the success flag.
+
+        Args:
+
+            success: Whether the registration was successful.
+
+        """
+
+        self.success = success
+
+    @rx.event
+
+    async def successful_registration(
+
+        self,
+
+    ):
+
+        # Set success and redirect to login page after a brief delay.
+
+        self.error_message = ""
+
+        self.new_user_id = -1
+
+        self.success = True
+
+        yield
+
+        await asyncio.sleep(POST_REGISTRATION_DELAY)
+
+        yield [rx.redirect(routes.LOGIN_ROUTE), type(self).set_success(False)]
+
+    @rx.event
+
+    def redir(self):
+
+        """Redirect to the registration form."""
+
+        return rx.redirect(routes.REGISTER_ROUTE)
+
+login.py:
+
+"""Login state and authentication logic."""
+
+from future import annotations
+
+from typing import Any
+
+import reflex as rx
+
+from sqlmodel import select
+
+from . import routes
+
+from .local_auth import LocalAuthState
+
+from .user import LocalUser
+
+class LoginState(LocalAuthState):
+
+    """Handle login form submission and redirect to proper routes after authentication."""
+
+    error_message: str = ""
+
+    redirect_to: str = ""
+
+    @rx.event
+
+    def on_submit(self, form_data: dict[str, Any]):
+
+        """Handle login form on_submit.
+
+        Args:
+
+            form_data: A dict of form fields and values.
+
+        """
+
+        self.error_message = ""
+
+        username = form_data["username"]
+
+        password = form_data["password"]
+
+        with rx.session() as session:
+
+            user = session.exec(
+
+                select(LocalUser).where(LocalUser.username == username)
+
+            ).one_or_none()
+
+        if user is not None and not user.enabled:
+
+            self.error_message = "This account is disabled."
+
+            return rx.set_value("password", "")
+
+        if (
+
+            user is not None
+
+            and user.id is not None
+
+            and user.enabled
+
+            and password
+
+            and user.verify(password)
+
+        ):
+
+            # mark the user as logged in
+
+            self._login(user.id)
+
+        else:
+
+            self.error_message = "There was a problem logging in, please try again."
+
+            return rx.set_value("password", "")
+
+        self.error_message = ""
+
+        return LoginState.redir()  # type: ignore
+
+    @rx.event
+
+    def redir(self):
+
+        """Redirect to the redirect_to route if logged in, or to the login page if not."""
+
+        if not self.is_hydrated:
+
+            # wait until after hydration to ensure auth_token is known
+
+            return LoginState.redir()  # type: ignore
+
+        page = self.router.page.path
+
+        if not self.is_authenticated and page != routes.LOGIN_ROUTE:
+
+            self.redirect_to = self.router.page.raw_path
+
+            return rx.redirect(routes.LOGIN_ROUTE)
+
+        elif self.is_authenticated and page == routes.LOGIN_ROUTE:
+
+            return rx.redirect(self.redirect_to or "/")
+
+def require_login(page: rx.app.ComponentCallable) -> rx.app.ComponentCallable:
+
+    """Decorator to require authentication before rendering a page.
+
+    If the user is not authenticated, then redirect to the login page.
+
+    Args:
+
+        page: The page to wrap.
+
+    Returns:
+
+        The wrapped page component.
+
+    """
+
+    def protected_page():
+
+        return rx.fragment(
+
+            rx.cond(
+
+                LoginState.is_hydrated & LoginState.is_authenticated,  # type: ignore
+
+                page(),
+
+                rx.center(
+
+                    # When this text mounts, it will redirect to the login page
+
+                    rx.text("Loading...", on_mount=LoginState.redir),
+
+                ),
+
+            )
+
+        )
+
+    protected_page.__name__ = page.__name__
+
+    return protected_page
+
+local_auth.py:
+
+"""
+
+Authentication data is stored in the LocalAuthState class so that all substates can
+
+access it for verifying access to event handlers and computed vars.
+
+Your app may inherit from LocalAuthState, or it may access it via the get_state API.
+
+"""
+
+from future import annotations
+
+import datetime
+
+import reflex as rx
+
+from sqlmodel import select
+
+from .auth_session import LocalAuthSession
+
+from .user import LocalUser
+
+AUTH_TOKEN_LOCAL_STORAGE_KEY = "_auth_token"
+
+DEFAULT_AUTH_SESSION_EXPIRATION_DELTA = datetime.timedelta(days=7)
+
+DEFAULT_AUTH_REFRESH_DELTA = datetime.timedelta(minutes=10)
+
+class LocalAuthState(rx.State):
+
+    # The auth_token is stored in local storage to persist across tab and browser sessions.
+
+    auth_token: str = rx.LocalStorage(name=AUTH_TOKEN_LOCAL_STORAGE_KEY)
+
+    @rx.var(cache=True, interval=DEFAULT_AUTH_REFRESH_DELTA)
+
+    def authenticated_user(self) -> LocalUser:
+
+        """The currently authenticated user, or a dummy user if not authenticated.
+
+        Returns:
+
+            A LocalUser instance with id=-1 if not authenticated, or the LocalUser instance
+
+            corresponding to the currently authenticated user.
+
+        """
+
+        with rx.session() as session:
+
+            result = session.exec(
+
+                select(LocalUser, LocalAuthSession).where(
+
+                    LocalAuthSession.session_id == self.auth_token,
+
+                    LocalAuthSession.expiration
+
+                    >= datetime.datetime.now(datetime.timezone.utc),
+
+                    LocalUser.id == LocalAuthSession.user_id,
+
+                ),
+
+            ).first()
+
+            if result:
+
+                user, session = result
+
+                return user
+
+        return LocalUser(id=-1)  # type: ignore
+
+    @rx.var(cache=True, interval=DEFAULT_AUTH_REFRESH_DELTA)
+
+    def is_authenticated(self) -> bool:
+
+        """Whether the current user is authenticated.
+
+        Returns:
+
+            True if the authenticated user has a positive user ID, False otherwise.
+
+        """
+
+        return (
+
+            self.authenticated_user.id is not None and self.authenticated_user.id >= 0
+
+        )
+
+    @rx.event
+
+    def do_logout(self):
+
+        """Destroy LocalAuthSessions associated with the auth_token."""
+
+        with rx.session() as session:
+
+            for auth_session in session.exec(
+
+                select(LocalAuthSession).where(
+
+                    LocalAuthSession.session_id == self.auth_token
+
+                )
+
+            ).all():
+
+                session.delete(auth_session)
+
+            session.commit()
+
+        self.auth_token = self.auth_token
+
+    def _login(
+
+        self,
+
+        user_id: int,
+
+        expiration_delta: datetime.timedelta = DEFAULT_AUTH_SESSION_EXPIRATION_DELTA,
+
+    ) -> None:
+
+        """Create an LocalAuthSession for the given user_id.
+
+        If the auth_token is already associated with an LocalAuthSession, it will be
+
+        logged out first.
+
+        Args:
+
+            user_id: The user ID to associate with the LocalAuthSession.
+
+            expiration_delta: The amount of time before the LocalAuthSession expires.
+
+        """
+
+        self.do_logout()
+
+        if user_id < 0:
+
+            return
+
+        self.auth_token = self.auth_token or self.router.session.client_token
+
+        with rx.session() as session:
+
+            session.add(
+
+                LocalAuthSession(  # type: ignore
+
+                    user_id=user_id,
+
+                    session_id=self.auth_token,
+
+                    expiration=datetime.datetime.now(datetime.timezone.utc)
+
+                    + expiration_delta,
+
+                )
+
+            )
+
+            session.commit()
+
+auth_session.py:
+
+import datetime
+
+import reflex as rx
+
+from sqlmodel import Column, DateTime, Field, String, func
+
+class LocalAuthSession(
+
+    rx.Model,
+
+    table=True,  # type: ignore
+
+):
+
+    """Correlate a session_id with an arbitrary user_id."""
+
+    user_id: int = Field(index=True, nullable=False)
+
+    session_id: str = Field(
+
+        unique=True,
+
+        index=True,
+
+        nullable=False,
+
+        sa_type=String(255),  # pyright: ignore[reportArgumentType]
+
+    )
+
+    expiration: datetime.datetime = Field(
+
+        sa_column=Column(
+
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+
+        ),
+
+    )
+
+init.py
+
+from . import pages, routes
+
+from .local_auth import LocalAuthState
+
+from .login import LoginState, require_login
+
+from .registration import RegistrationState
+
+from .routes import set_login_route, set_register_route
+
+from .user import LocalUser
+
+all = [
+
+    "LocalAuthState",
+
+    "LocalUser",
+
+    "LoginState",
+
+    "RegistrationState",
+
+    "pages",
+
+    "require_login",
+
+    "routes",
+
+    "set_login_route",
+
+    "set_register_route",
+
+]
+
+/pages/__init.py:
+
+from . import components
+
+from .login import login_page
+
+from .registration import register_page
+
+all = ["components", "login_page", "register_page"]
+
+/pages/components.py:
+
+import reflex as rx
+
+PADDING_TOP = "10vh"
+
+MIN_WIDTH = "50vw"
+
+def input_100w(name, **props) -> rx.Component:
+
+    """Render a 100% width input.
+
+    Returns:
+
+        A reflex component.
+
+    """
+
+    return rx.input(
+
+        placeholder=name.replace("_", " ").title(),
+
+        id=name,
+
+        name=name,
+
+        width="100%",
+
+        **props,
+
+    )
+
+/pages/login.yp:
+
+"""An example login page that can be used as-is.
+
+app.add_page(
+
+    reflex_local_auth.pages.login_page,
+
+    route=reflex_local_auth.routes.LOGIN_ROUTE,
+
+    title="Login",
+
+)
+
+"""
+
+import reflex as rx
+
+from ..login import LoginState
+
+from ..registration import RegistrationState
+
+from .components import MIN_WIDTH, PADDING_TOP, input_100w
+
+def login_error() -> rx.Component:
+
+    """Render the login error message."""
+
+    return rx.cond(
+
+        LoginState.error_message != "",
+
+        rx.callout(
+
+            LoginState.error_message,
+
+            icon="triangle_alert",
+
+            color_scheme="red",
+
+            role="alert",
+
+            width="100%",
+
+        ),
+
+    )
+
+def login_form() -> rx.Component:
+
+    """Render the login form."""
+
+    return rx.form(
+
+        rx.vstack(
+
+            rx.heading("Login into your Account", size="7"),
+
+            login_error(),
+
+            rx.text("Username"),
+
+            input_100w("username"),
+
+            rx.text("Password"),
+
+            input_100w("password", type="password"),
+
+            rx.button("Sign in", width="100%"),
+
+            rx.center(
+
+                rx.link("Register", on_click=RegistrationState.redir),
+
+                width="100%",
+
+            ),
+
+            min_width=MIN_WIDTH,
+
+        ),
+
+        on_submit=LoginState.on_submit,
+
+    )
+
+def login_page() -> rx.Component:
+
+    """Render the login page.
+
+    Returns:
+
+        A reflex component.
+
+    """
+
+    return rx.center(
+
+        rx.cond(
+
+            LoginState.is_hydrated,  # type: ignore
+
+            rx.card(login_form()),
+
+        ),
+
+        padding_top=PADDING_TOP,
+
+    )
+
+/pages/registration.py:
+
+"""An example registration page that can be used as-is.
+
+app.add_page(
+
+    reflex_local_auth.pages.register_page,
+
+    route=reflex_local_auth.routes.REGISTER_ROUTE,
+
+    title="Register",
+
+)
+
+"""
+
+import reflex as rx
+
+from .. import routes
+
+from ..registration import RegistrationState
+
+from .components import MIN_WIDTH, PADDING_TOP, input_100w
+
+def register_error() -> rx.Component:
+
+    """Render the registration error message."""
+
+    return rx.cond(
+
+        RegistrationState.error_message != "",
+
+        rx.callout(
+
+            RegistrationState.error_message,
+
+            icon="triangle_alert",
+
+            color_scheme="red",
+
+            role="alert",
+
+            width="100%",
+
+        ),
+
+    )
+
+def register_form() -> rx.Component:
+
+    """Render the registration form."""
+
+    return rx.form(
+
+        rx.vstack(
+
+            rx.heading("Create an account", size="7"),
+
+            register_error(),
+
+            rx.text("Username"),
+
+            input_100w("username"),
+
+            rx.text("Password"),
+
+            input_100w("password", type="password"),
+
+            rx.text("Confirm Password"),
+
+            input_100w("confirm_password", type="password"),
+
+            rx.button("Sign up", width="100%"),
+
+            rx.center(
+
+                rx.link("Login", on_click=lambda: rx.redirect(routes.LOGIN_ROUTE)),
+
+                width="100%",
+
+            ),
+
+            min_width=MIN_WIDTH,
+
+        ),
+
+        on_submit=RegistrationState.handle_registration,
+
+    )
+
+def register_page() -> rx.Component:
+
+    """Render the registration page.
+
+    Returns:
+
+        A reflex component.
+
+    """
+
+    return rx.center(
+
+        rx.cond(
+
+            RegistrationState.success,
+
+            rx.vstack(
+
+                rx.text("Registration successful!"),
+
+            ),
+
+            rx.card(register_form()),
+
+        ),
+
+        padding_top=PADDING_TOP,
+
+    )

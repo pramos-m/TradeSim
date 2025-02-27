@@ -6,7 +6,7 @@ def landing_layout(content: rx.Component) -> rx.Component:
     return rx.box(
         rx.box(
             rx.image(
-                src="/home.png",
+                src="/home.svg",
                 position="absolute",
                 top="0",
                 left="0",
