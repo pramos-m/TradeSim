@@ -1,9 +1,4 @@
-# main.py
-import reflex as rx
-from .database import Base, engine
+from tradesim import app
 
-# Crear las tablas en la base de datos
-Base.metadata.create_all(bind=engine)
-
-# No es necesario crear una nueva instancia de App aquí
-# ya que la aplicación se configura en __init__.py
+if __name__ == "__main__":
+    app.start()
