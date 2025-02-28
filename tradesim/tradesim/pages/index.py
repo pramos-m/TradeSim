@@ -98,7 +98,8 @@ def index_content() -> rx.Component:
     )
 
 def index() -> rx.Component:
-    """Landing page with layout."""
+    # Asegurarnos de que no haya redirecciones basadas en autenticación
+    # Eliminar cualquier rx.cond() o similar que redirija basado en AuthState.is_authenticated
     return landing_layout(index_content())
 
 # Configure the page
@@ -106,4 +107,3 @@ index = rx.page(
     route="/",
     title="TradeSim - Inicio",
 )(index)
-

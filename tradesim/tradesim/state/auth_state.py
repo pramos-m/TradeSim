@@ -60,22 +60,10 @@ class AuthState(rx.State):
         # Get current path
         current_path = self.router.page.path
         
-        # If we're on the same path as last time and already processed, skip processing
-        if current_path == self.last_path and self.processed_token:
-            return
-        
-        # Update last path
-        self.last_path = current_path
-        self.processed_token = True
-        
-        # Check if we have a token
-        if not self.auth_token:
-            # No token, not authenticated
-            self.is_authenticated = False
-            
-            # Only redirect if we're on a protected page
-            if current_path == "/dashboard":
-                return rx.redirect("/login")
+        # Si estamos en la ruta principal (/), nunca redirigimos
+        if current_path == "/":
+            self.processed_token = True
+            self.last_path = "/"
             return
         
         # We have a token, verify it
@@ -234,8 +222,8 @@ class AuthState(rx.State):
         # Set to empty string to clear cookie
         self.auth_token = ""
         
-        # Then redirect
-        return rx.redirect("/")
+        # Usar un script JavaScript para navegar directamente
+        return rx.call_script("window.location.href = '/'")
     
     def set_active_tab(self, tab: str) -> None:
         """Switch between login/register tabs."""
