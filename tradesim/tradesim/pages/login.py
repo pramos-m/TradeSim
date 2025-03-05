@@ -3,7 +3,7 @@ from ..state.auth_state import AuthState
 from ..utils.auth_middleware import public_only
 
 # Constantes para las imágenes
-BACKGROUND_IMAGE = "./registro.svg"
+BACKGROUND_IMAGE = "./background.svg"
 LOGO_IMAGE = "./logo.svg"
 
 def login_form() -> rx.Component:
@@ -16,7 +16,7 @@ def login_form() -> rx.Component:
                 rx.text(
                     AuthState.error_message,
                     color="#5271FF",
-                    font_size="sm",
+                    font_size="2",
                     text_align="center",
                 ),
             ),
@@ -215,7 +215,7 @@ def login_page() -> rx.Component:
         width="100vw",
         height="100vh",
         position="relative",
-        background="url('/registro.svg')",
+        background="url('/background.svg')",
         background_size="cover",
     )
 
