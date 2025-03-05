@@ -133,4 +133,4 @@ def index() -> rx.Component:
 # Configure the page
 index = rx.page(
     route="/",
-    title="TradeSim - Inicio",
+    title="TradeSim - Inicio"

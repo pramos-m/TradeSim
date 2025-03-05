@@ -7,5 +7,9 @@ config = rx.Config(
     frontend_port=3000,
     backend_port=8000,
     telemetry_enabled=False,
-    cookies_enabled=True,
+    # Forzar React 18 para compatibilidad
+    frontend_packages=[
+        "react@18.2.0",
+        "react-dom@18.2.0"
+    ]
 )
