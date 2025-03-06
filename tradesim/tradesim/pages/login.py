@@ -8,7 +8,7 @@ LOGO_IMAGE = "./logo.svg"
 
 def login_form() -> rx.Component:
     """Componente del formulario de login."""
-    return rx.box(
+    return rx.form(  # Cambiado a form para soporte de Enter
         rx.vstack(
             rx.heading("Iniciar Sesión", size="9", mb="6"),
             rx.cond(
@@ -59,6 +59,7 @@ def login_form() -> rx.Component:
                 size="3",
                 _hover={"bg": "blue.600"},
                 is_loading=AuthState.loading,
+                type_="submit"
             ),
             rx.link(
                 "¿No tienes cuenta? Regístrate",
@@ -74,11 +75,17 @@ def login_form() -> rx.Component:
         padding="8",
         border_radius="lg",
         box_shadow="lg",
+        on_submit=AuthState.login,
+        width="100%",  # Controlar ancho del formulario
+        max_width="400px",  # Limitar el ancho máximo
+        display="block",  # Cambiar display
+        align_items="stretch",  # Evitar estiramiento
+        style={"width": "100%", "display": "block"}  # Forzar ancho mediante estilos inline
     )
 
 def register_form() -> rx.Component:
     """Componente del formulario de registro."""
-    return rx.box(
+    return rx.form(  # Cambiado a form para soporte de Enter
         rx.vstack(
             rx.heading("Registro", size="9", mb="6"),
             rx.cond(
@@ -155,6 +162,7 @@ def register_form() -> rx.Component:
                 size="3",
                 _hover={"bg": "blue.600"},
                 is_loading=AuthState.loading,
+                type_="submit"
             ),
             rx.link(
                 "¿Ya tienes cuenta? Inicia Sesión",
@@ -170,6 +178,12 @@ def register_form() -> rx.Component:
         padding="8",
         border_radius="lg",
         box_shadow="lg",
+        on_submit=AuthState.register,
+        width="100%",  # Controlar ancho del formulario
+        max_width="400px",  # Limitar el ancho máximo
+        display="block",  # Cambiar display
+        align_items="stretch",  # Evitar estiramiento
+        style={"width": "100%", "display": "block"}  # Forzar ancho mediante estilos inline
     )
 
 @public_only

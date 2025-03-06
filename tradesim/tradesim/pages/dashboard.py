@@ -11,6 +11,11 @@ def dashboard_page() -> rx.Component:
                 rx.image(src="/logo.svg", height="50px"),
                 rx.spacer(),
                 rx.text(f"Usuario: {AuthState.username}", margin_right="4"),
+                rx.link(
+                    rx.button("Perfil", variant="outline"),
+                    href="/profile",
+                    margin_right="2"
+                ),
                 rx.button(
                     "Cerrar Sesión",
                     on_click=AuthState.logout,
