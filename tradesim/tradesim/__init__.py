@@ -12,6 +12,9 @@ init_db_tables()
 from .pages.index import index
 from .pages.dashboard import dashboard
 from .pages.login import login
+from .pages.clasificacion import clasificacion
+from .pages.noticias import noticias
+from .pages.buscador import buscador
 
 # Import the state
 from .state.auth_state import AuthState
@@ -20,6 +23,9 @@ from .state.auth_state import AuthState
 app.add_page(index)
 app.add_page(dashboard)
 app.add_page(login)
+app.add_page(clasificacion)
+app.add_page(noticias)
+app.add_page(buscador)
 
 # Set state
 app.state = AuthState

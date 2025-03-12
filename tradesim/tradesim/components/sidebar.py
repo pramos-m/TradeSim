@@ -1,5 +1,3 @@
-# tradesim/tradesim/components/sidebar.py
-
 import reflex as rx
 
 def sidebar() -> rx.Component:
@@ -39,7 +37,7 @@ def sidebar() -> rx.Component:
                 cursor="pointer",
                 on_click=lambda: rx.redirect("/buscador"),
             ),
-            spacing="4",  # Use a valid spacing value (e.g., "4")
+            spacing="9",  # Increased spacing value (e.g., "8")
             align="center",  # Center-align buttons horizontally
             justify="center",  # Center-align buttons vertically
             height="100%",  # Take up full height of the sidebar
@@ -47,6 +45,6 @@ def sidebar() -> rx.Component:
         ),
         width="90px",  # Width of the sidebar
         height="100vh",  # Full height of the viewport
-        bg="blue",  # Background color of the sidebar
+        bg="white",  # Background color of the sidebar
         border_right="1px solid #ddd",  # Right border for separation
     )

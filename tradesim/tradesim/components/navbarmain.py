@@ -1,5 +1,3 @@
-# tradesim/tradesim/components/navbarmain.py
-
 import reflex as rx
 
 def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
@@ -18,20 +16,24 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
         rx.hstack(
             # Profile Section (Left Side)
             rx.hstack(
-                rx.avatar(src=user_image_url, name=user_name, size="3"),  # Use a valid size value
-                rx.text(user_name, font_size="1em", font_weight="bold"),  # User's name
+                rx.avatar(src=user_image_url, name=user_name, size="4"),  # Adjust the size of the profile picture
+                rx.text(user_name, font_size="1.5em", font_weight="bold"),  # Adjust the font size of the username
                 spacing="2",
                 align="center",
             ),
             # Spacer to push the logo to the far right
             rx.spacer(),
             # Logo (Far Right)
-            rx.image(src=logo_url, width="100px"),  # Website logo
+            rx.box(
+                rx.image(src=logo_url, width="120px"),  # Adjust the width of the logo
+                padding="0.5em",  # Add some padding around the logo
+                border_radius="md",  # Add border radius to the logo box
+            ),
             width="100%",  # Ensure the navbar spans the full width
             padding="1em",  # Add some padding
-            bg="blue",  # Set the background color of the navbar to blue
+            bg="white",  # Set the background color of the navbar
             border_bottom="1px solid #ddd",  # Add a border at the bottom
         ),
         width="100%",  # Ensure the navbar spans the full width
-        bg="blue",  # Set the background color of the entire navbar to blue
+        bg="white",  # Set the background color of the entire navbar
     )

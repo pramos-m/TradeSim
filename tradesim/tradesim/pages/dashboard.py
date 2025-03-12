@@ -15,8 +15,8 @@ def dashboard_page() -> rx.Component:
             # Navbar
             navbar(
                 user_name=AuthState.username,  # Pass the username from AuthState
-                user_image_url="/profile.jpg",  # Path to the user's profile picture
-                logo_url="/logo.svg",  # Path to the logo
+                user_image_url="/elonmusk.png",  # Path to the user's profile picture
+                logo_url="/logonavbar.png",  # Path to the logo
             ),
             # Dashboard Content
             rx.center(
