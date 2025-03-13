@@ -1,32 +1,12 @@
 import reflex as rx
 from ..state.auth_state import AuthState
 from ..utils.auth_middleware import require_auth
+from ..components.layout import layout
 
 @require_auth
 def dashboard_page() -> rx.Component:
-    """Dashboard simple protegido por autenticación."""
-    return rx.vstack(
-        rx.box(
-            rx.hstack(
-                rx.image(src="/logo.svg", height="50px"),
-                rx.spacer(),
-                rx.text(f"Usuario: {AuthState.username}", margin_right="4"),
-                rx.link(
-                    rx.button("Perfil", variant="outline"),
-                    href="/profile",
-                    margin_right="2"
-                ),
-                rx.button(
-                    "Cerrar Sesión",
-                    on_click=AuthState.logout,
-                    color_scheme="red",
-                ),
-                width="100%",
-                padding="4",
-                border_bottom="1px solid",
-                border_color="gray.200",
-            ),
-        ),
+    """Dashboard protegido por autenticación con navbar y sidebar."""
+    return layout(
         rx.center(
             rx.vstack(
                 rx.heading(f"Bienvenido, {AuthState.username}!", size="9"),
@@ -52,10 +32,7 @@ def dashboard_page() -> rx.Component:
             ),
             width="100%",
             padding_y="8",
-        ),
-        width="100%",
-        min_height="100vh",
-        background="gray.50",
+        )
     )
 
 # Add page with on_load event to verify the token is valid

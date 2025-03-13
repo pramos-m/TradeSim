@@ -3,10 +3,10 @@ echo ===========================================
 echo  Instalando TradeSim en Windows (sin Docker)
 echo ===========================================
 
-:: Verificar si Python está instalado
+:: Verificar si Python está instalado
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Python no está instalado. Descárgalo en https://www.python.org/downloads/
+    echo [ERROR] Python no está instalado. Descárgalo en https://www.python.org/downloads/
     exit /b 1
 )
 
@@ -27,7 +27,7 @@ if not exist "data" mkdir data
 echo [INFO] Inicializando la base de datos...
 python scripts\init_db.py
 
-:: Ejecutar la aplicación
+:: Ejecutar la aplicación
 echo [INFO] Ejecutando TradeSim...
 python -m reflex run --env dev
 
