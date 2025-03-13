@@ -15,7 +15,7 @@ class AuthState(rx.State):
     """Estado de autenticación mejorado."""
     # Authentication state
     is_authenticated: bool = False
-    auth_token: str = rx.Cookie(name="auth_token", max_age=1800)
+    auth_token: str = rx.Cookie(name="auth_token", max_age=1800)  # Usar rx.Cookie en lugar de str
     processed_token: bool = False
     loading: bool = False
     
@@ -60,22 +60,10 @@ class AuthState(rx.State):
         # Get current path
         current_path = self.router.page.path
         
-        # If we're on the same path as last time and already processed, skip processing
-        if current_path == self.last_path and self.processed_token:
-            return
-        
-        # Update last path
-        self.last_path = current_path
-        self.processed_token = True
-        
-        # Check if we have a token
-        if not self.auth_token:
-            # No token, not authenticated
-            self.is_authenticated = False
-            
-            # Only redirect if we're on a protected page
-            if current_path == "/dashboard":
-                return rx.redirect("/login")
+        # Si estamos en la ruta principal (/), nunca redirigimos
+        if current_path == "/":
+            self.processed_token = True
+            self.last_path = "/"
             return
         
         # We have a token, verify it
@@ -86,7 +74,7 @@ class AuthState(rx.State):
             self.auth_token = ""  # Clear invalid token
             
             # Only redirect if we're on a protected page
-            if current_path == "/dashboard":
+            if current_path == "/dashboard" or current_path == "/profile":  # Añade la página de perfil aquí
                 return rx.redirect("/login")
             return
         
@@ -96,7 +84,7 @@ class AuthState(rx.State):
             user = get_user_by_id(db, user_id)
             if user:
                 self.username = user.username
-                self.email = user.email
+                self.email = user.email  # Asegúrate de mantener el email
                 self.is_authenticated = True
                 
                 # Only redirect if we're on the login page and authenticated
@@ -108,11 +96,11 @@ class AuthState(rx.State):
                 self.auth_token = ""
                 
                 # Only redirect if we're on a protected page
-                if current_path == "/dashboard":
+                if current_path == "/dashboard" or current_path == "/profile":  # Añade la página de perfil aquí
                     return rx.redirect("/login")
         finally:
             db.close()
-
+            
     @rx.event
     async def login(self):
         """Process login attempt."""
@@ -139,8 +127,11 @@ class AuthState(rx.State):
             # When login is successful:
             self.is_authenticated = True
             self.username = user.username
+            self.email = user.email
             token = self.create_access_token(user.id)
-            self.auth_token = token
+            
+            # Store token in cookie
+            self.auth_token = token  # Esto usa la cookie
             
             # Update last path to prevent redirect loops
             self.last_path = "/dashboard" 
@@ -200,7 +191,7 @@ class AuthState(rx.State):
             
             # Create and store token
             token = self.create_access_token(new_user.id)
-            self.auth_token = token
+            self.auth_token = token  # Esto usa la cookie
             self.is_authenticated = True
             
             # Update last path to prevent redirect loops
@@ -227,15 +218,15 @@ class AuthState(rx.State):
         self.password = ""
         self.confirm_password = ""
         
+        # Set to empty string to clear cookie
+        self.auth_token = ""
+        
         # Important: Set processed_token to True to prevent immediate recheck
         self.processed_token = True
         self.last_path = "/"
         
-        # Set to empty string to clear cookie
-        self.auth_token = ""
-        
-        # Then redirect
-        return rx.redirect("/")
+        # Usar un script JavaScript para navegar directamente
+        return rx.call_script("window.location.href = '/'")
     
     def set_active_tab(self, tab: str) -> None:
         """Switch between login/register tabs."""
