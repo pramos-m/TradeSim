@@ -1,25 +1,10 @@
 import reflex as rx
-from ..state.auth_state import AuthState
-from ..components.navbarmain import navbar
-from ..components.sidebar import sidebar
+from ..components.layout import layout
 
 def clasificacion_page() -> rx.Component:
     """Placeholder page for Clasificacion."""
-    return rx.hstack(
-        sidebar(),
-        rx.vstack(
-            navbar(
-                user_name=AuthState.username,  # Pass the username from AuthState
-                user_image_url="/elonmusk.png",  # Path to the user's profile picture
-                logo_url="/logonavbar.png",  # Path to the logo
-            ),
-            rx.center(rx.text("Clasificacion Page")),
-            width="100%",
-            min_height="100vh",
-            background="gray.50",
-        ),
-        width="100%",
-        min_height="100vh",
+    return layout(
+        rx.center(rx.text("Clasificacion Page"))
     )
 
 clasificacion = rx.page(
