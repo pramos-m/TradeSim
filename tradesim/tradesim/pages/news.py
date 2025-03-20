@@ -1,233 +1,298 @@
 import reflex as rx
 from ..components.layouts.dashboard_layout import dashboard_layout
 from ..state.news_state import NewsState
-from ..utils.auth_middleware import require_auth
 
-def news_card(article: dict) -> rx.Component:
-    """Componente para mostrar una noticia individual."""
-    # En lugar de usar el enlace dinámicamente dentro del componente,
-    # vamos a usar rx.cond para crear diferentes botones según el caso
+# Definición de colores
+GOOGLE_BLUE = "#5271FF"
+GOOGLE_BLUE_LIGHT = "#EEF1FF"
+GOOGLE_BLUE_DARK = "#3B55D9"
+TEXT_DARK = "#202124"
+TEXT_GRAY = "#5F6368"
+
+def featured_news_card(article) -> rx.Component:
+    """Componente para mostrar la noticia destacada (más grande) con estilo Google."""
+    if article is None:
+        return rx.box()
     
     return rx.box(
-        rx.hstack(
-            # Parte izquierda: Miniatura o icono
-            rx.box(
-                rx.cond(
-                    article["thumbnail_url"] != None,
-                    rx.image(
-                        src=article["thumbnail_url"],
-                        width="100px",
-                        height="75px",
-                        border_radius="md",
-                        object_fit="cover",
-                    ),
-                    rx.icon(
-                        tag="newspaper",
-                        font_size="2em",
-                        color="gray.500",
-                        box_size="75px",
-                    ),
-                ),
-                min_width="100px",
-            ),
-            
-            # Parte derecha: Contenido de la noticia
+        rx.flex(
+            # Contenido de texto
             rx.vstack(
                 rx.heading(
-                    article["title"],
-                    size="4",
-                    align="left",
+                    article.title, 
+                    size="3", 
+                    align="left", 
+                    color=TEXT_DARK,
+                    line_height="1.2",
+                    font_weight="500"
+                ),
+                rx.hstack(
+                    rx.text(article.publisher, color=GOOGLE_BLUE_DARK, font_size="sm", font_weight="500"),
+                    rx.text("•", color=TEXT_GRAY, font_size="xs", margin_x="2"),
+                    rx.text(article.date, color=TEXT_GRAY, font_size="xs", font_style="italic"),
+                    width="100%",
+                    align_items="center",
+                    justify_content="flex_start",
                 ),
                 rx.text(
-                    article["publisher"],
-                    color="gray.600",
-                    font_size="sm",
-                    align="left",
+                    article.summary, 
+                    color=TEXT_GRAY, 
+                    font_size="md", 
+                    align="left", 
+                    margin_y="4",
+                    line_height="1.5"
+                ),
+                rx.button(
+                    "Leer noticia completa",
+                    variant="solid",
+                    size="2",
+                    color="white",
+                    background=GOOGLE_BLUE,
+                    _hover={"background": GOOGLE_BLUE_DARK},
+                    on_click=lambda url=article.url: NewsState.open_url(url),
+                    width="full",
+                ),
+                align_items="flex_start",
+                spacing="3",
+                width="100%",
+                height="100%",
+            ),
+            flex_direction="column",
+            align_items="stretch",
+            width="100%",
+            spacing="4",
+        ),
+        width="100%",
+        height="100%",
+        padding="6",
+        border_radius="xl",
+        background="white",
+        shadow="lg",
+        _hover={"shadow": "xl", "transform": "translateY(-2px)"},
+        transition="all 0.3s ease-in-out",
+        border="1px solid",
+        border_color="gray.100",
+    )
+
+def news_list_item(article) -> rx.Component:
+    """Componente para mostrar un elemento de la lista de noticias con estilo Google."""
+    return rx.box(
+        rx.flex(
+            # Contenido de texto
+            rx.vstack(
+                rx.heading(
+                    article.title, 
+                    size="4", 
+                    align="left", 
+                    no_of_lines=2, 
+                    color=TEXT_DARK,
+                    font_weight="500",
+                    line_height="1.2"
+                ),
+                rx.hstack(
+                    rx.text(article.publisher, color=GOOGLE_BLUE_DARK, font_size="xs", font_weight="500"),
+                    rx.text("•", color=TEXT_GRAY, font_size="xs", margin_x="1"),
+                    rx.text(article.date, color=TEXT_GRAY, font_size="xs", font_style="italic"),
+                    width="100%",
+                    align_items="center",
+                    justify_content="flex_start",
                 ),
                 rx.text(
-                    article["formatted_date"],
-                    color="gray.500",
-                    font_size="xs",
-                    font_style="italic",
-                    align="left",
+                    article.summary, 
+                    color=TEXT_GRAY, 
+                    font_size="sm", 
+                    align="left", 
+                    margin_y="2",
+                    line_height="1.4",
+                    # Usamos css para limitar líneas
+                    css={"display": "-webkit-box", 
+                         "WebkitLineClamp": "2", 
+                         "WebkitBoxOrient": "vertical",
+                         "overflow": "hidden"},
                 ),
-                rx.text(
-                    article["summary_display"],
-                    color="gray.700",
-                    font_size="sm",
-                    align="left",
-                ),
-                # En lugar de un enlace con href dinámico, usamos un botón que abre una nueva ventana
                 rx.button(
                     "Leer más",
                     variant="outline",
                     size="1",
-                    color_scheme="blue",
-                    on_click=rx.client_side("window.open('" + str(article["link"]) + "', '_blank')"),
+                    border_color=GOOGLE_BLUE,
+                    color=GOOGLE_BLUE,
+                    _hover={"background": GOOGLE_BLUE_LIGHT},
+                    on_click=lambda url=article.url: NewsState.open_url(url),
+                    width="full",
                 ),
                 align_items="flex_start",
-                spacing="1",
+                spacing="2",
                 width="100%",
             ),
-            spacing="4",
-            align_items="flex_start",
+            flex_direction="column",
             width="100%",
+            spacing="4",
         ),
-        padding="4",
-        border_radius="md",
-        border="1px solid",
-        border_color="gray.200",
-        margin_bottom="4",
         width="100%",
+        padding="4",
+        border_radius="lg",
         background="white",
-        _hover={"shadow": "md"},
-        transition="all 0.2s",
+        shadow="sm",
+        _hover={
+            "shadow": "md", 
+            "transform": "translateY(-1px)",
+            "border_left": f"4px solid {GOOGLE_BLUE}"
+        },
+        transition="all 0.2s ease-in-out",
+        border="1px solid",
+        border_color="gray.100",
+        margin_bottom="3",
     )
 
-# El resto del archivo permanece igual
+def no_news_message() -> rx.Component:
+    """Componente para mostrar cuando no hay noticias disponibles."""
+    return rx.box(
+        rx.vstack(
+            rx.icon(tag="info", color=GOOGLE_BLUE, font_size="xl"),
+            rx.heading("Sin resultados", size="4", color=GOOGLE_BLUE),
+            rx.text("No hay noticias financieras disponibles en este momento. Intente más tarde.", 
+                  color=TEXT_GRAY, text_align="center"),
+            spacing="3",
+            padding="6",
+        ),
+        width="100%",
+        border_radius="lg",
+        background=GOOGLE_BLUE_LIGHT,
+        padding="4",
+        shadow="sm",
+    )
 
 def news_content() -> rx.Component:
-    """Contenido principal de la página de noticias."""
+    """Contenido principal de la página de noticias con estilo Google."""
     return rx.vstack(
-        # Auto-cargar noticias al inicio
-        rx.button(
-            "Cargar noticias",
-            on_click=NewsState.get_news,
-            is_loading=NewsState.is_loading,
-            display="none",
-            id="load_news_button",
-        ),
+        # Botón oculto para cargar noticias automáticamente
+        rx.button("Cargar noticias", on_click=NewsState.get_news, is_loading=NewsState.is_loading, display="none", id="load_news_button"),
         rx.script("document.getElementById('load_news_button').click();"),
         
-        # Título de la página
-        rx.heading("Noticias Financieras", size="2", margin_bottom="6"),
-        
-        # Selector de empresas y buscador
-        rx.hstack(
-            rx.select(
-                NewsState.default_tickers,
-                default_value=NewsState.selected_ticker,
-                on_change=NewsState.set_ticker,
-                placeholder="Selecciona una empresa",
-                width=["100%", "70%", "60%", "50%"],
-            ),
-            rx.hstack(
-                rx.input(
-                    placeholder="Buscar por símbolo",
-                    value=NewsState.custom_ticker,
-                    on_change=NewsState.set_custom_ticker,
-                ),
-                rx.button(
-                    "Buscar",
-                    on_click=NewsState.search_custom_ticker,
-                    color_scheme="blue",
-                ),
-                spacing="2",
-                width=["100%", "30%", "40%", "50%"],
+        # Título de la página con estilo Google
+        rx.flex(
+            rx.heading(
+                "Noticias Financieras", 
+                size="2", 
+                color=GOOGLE_BLUE,
+                font_weight="normal"
             ),
             width="100%",
-            spacing="4",
+            border_bottom=f"2px solid {GOOGLE_BLUE}",
+            padding_bottom="2",
             margin_bottom="6",
-            flex_direction=["column", "column", "row", "row"],
         ),
         
-        # Contenido principal - Cargando, sin resultados o listado de noticias
+        # Contenido de noticias o indicadores de carga/no resultados
         rx.cond(
-            NewsState.is_loading,
-            # Caso 1: Mostrando indicador de carga
+            NewsState.is_loading & ~NewsState.has_news,
+            # Estado de carga
             rx.center(
-                rx.spinner(),
-                rx.text("Cargando noticias..."),
-                padding="10",
+                rx.vstack(
+                    rx.spinner(size="3", color=GOOGLE_BLUE), 
+                    rx.text("Cargando noticias financieras...", color=GOOGLE_BLUE, font_size="lg"),
+                    spacing="4"
+                ), 
+                padding="10", 
+                width="100%"
             ),
-            # Caso 2: Verificar si hay noticias o no
+            # Contenido cuando finaliza la carga
             rx.cond(
                 ~NewsState.has_news,
-                # Sin noticias - Mostrar mensaje informativo
-                rx.box(
-                    rx.vstack(
-                        rx.icon(
-                            tag="info", 
-                            color="blue.400", 
-                            font_size="xl"
-                        ),
-                        rx.heading(
-                            "Sin resultados", 
-                            size="4", 
-                            color="blue.600"
-                        ),
-                        rx.text(
-                            f"No hay noticias disponibles para {NewsState.selected_ticker}. Prueba con otro símbolo.",
-                            color="blue.600"
-                        ),
-                        spacing="2",
-                        padding="4",
-                    ),
-                    width="100%",
-                    border="1px solid",
-                    border_color="blue.100",
-                    border_radius="md",
-                    background="blue.50",
-                    padding="2",
-                ),
-                # Con noticias - Mostrar listado
+                # Cuando no hay noticias
+                no_news_message(),
+                # Cuando hay noticias
                 rx.vstack(
-                    # Texto informativo
                     rx.text(
-                        NewsState.news_display_text,
-                        font_weight="bold",
+                        NewsState.news_display_text, 
+                        font_weight="normal",
+                        color=TEXT_GRAY,
+                        margin_bottom="4"
                     ),
                     
-                    # Listado de noticias
-                    rx.vstack(
-                        rx.box(
-                            rx.foreach(
-                                NewsState.displayed_news,
-                                lambda article: news_card(article),
+                    # Noticia destacada
+                    featured_news_card(NewsState.featured_news),
+                    
+                    # Lista de noticias recientes
+                    rx.cond(
+                        NewsState.has_more_than_one_news,
+                        rx.vstack(
+                            rx.heading(
+                                "Noticias recientes", 
+                                size="3", 
+                                margin_y="4",
+                                color=GOOGLE_BLUE,
+                                font_weight="normal"
                             ),
+                            rx.foreach(
+                                NewsState.recent_news_list,
+                                news_list_item
+                            ),
+                            width="100%",
+                            spacing="3",
+                        ),
+                        rx.box()  # No mostrar esta sección si no hay más que una noticia
+                    ),
+                    
+                    # Mostrar todas las noticias adicionales
+                    rx.vstack(
+                        rx.heading(
+                            "Más noticias", 
+                            size="3", 
+                            margin_y="4",
+                            color=GOOGLE_BLUE,
+                            font_weight="normal"
+                        ),
+                        rx.foreach(
+                            NewsState.additional_news_list,
+                            news_list_item
                         ),
                         width="100%",
-                        spacing="4",
+                        spacing="3",
+                        display=rx.cond(NewsState.has_more_than_five_news, "block", "none"),
                     ),
                     
-                    # Botón para ver más/menos
+                    # Botón para cargar más noticias estilo Google
                     rx.cond(
-                        NewsState.has_more_than_five_news,
-                        rx.cond(
-                            ~NewsState.show_all_news,
+                        NewsState.can_load_more,
+                        rx.center(
                             rx.button(
-                                "Ver todas las noticias",
-                                on_click=NewsState.toggle_show_all,
-                                color_scheme="blue",
-                                variant="outline",
+                                rx.cond(
+                                    NewsState.is_loading,
+                                    "Cargando...", 
+                                    "Cargar más noticias"
+                                ), 
+                                on_click=NewsState.load_more_news,
+                                is_loading=NewsState.is_loading,
+                                background=GOOGLE_BLUE,
+                                color="white",
+                                _hover={"background": GOOGLE_BLUE_DARK},
                                 size="2",
+                                margin_top="8",
+                                width=["100%", "auto", "auto"],
+                                border_radius="full",
+                                padding_x="6"
                             ),
-                            rx.button(
-                                "Ver menos noticias",
-                                on_click=NewsState.toggle_show_all,
-                                color_scheme="blue",
-                                variant="outline",
-                                size="2",
-                            ),
+                            width="100%",
                         ),
-                        rx.box(),
+                        rx.box()
                     ),
+                    
                     width="100%",
-                    align_items="center",
+                    align_items="stretch",
+                    spacing="4",
                 ),
             ),
         ),
         width="100%",
         spacing="4",
+        background="white",
+        padding="4",
+        border_radius="lg",
     )
 
-@require_auth
 def news_page() -> rx.Component:
     """Página de noticias utilizando el layout del dashboard."""
     return dashboard_layout(news_content())
 
-# Configurar la página
-news = rx.page(
-    route="/news",
-    title="TradeSim - Noticias Financieras",
-)(news_page)
+news = rx.page(route="/news", title="TradeSim - Noticias Financieras")(news_page)

@@ -1,0 +1,118 @@
+{
+  "id": "acd446cb-344a-4572-9353-a64b693bdfee",
+  "content": {
+    "id": "acd446cb-344a-4572-9353-a64b693bdfee",
+    "contentType": "STORY",
+    "title": "Apple's AI strategy is showing troubling cracks",
+    "description": "",
+    "summary": "Apple's AI strategy is off to a poor start, and it may be a while before things get better.",
+    "pubDate": "2025-03-12T15:05:59Z",
+    "displayTime": "2025-03-12T15:05:59Z",
+    "isHosted": true,
+    "bypassModal": false,
+    "previewUrl": null,
+    "thumbnail": {
+      "originalUrl": "https://s.yimg.com/os/creatr-uploaded-images/2024-10/1e116b50-84e5-11ef-b3bf-a1f02285a1ce",
+      "originalWidth": 5000,
+      "originalHeight": 3213,
+      "caption": "",
+      "resolutions": [
+        {
+          "url": "https://s.yimg.com/uu/api/res/1.2/RW_T2Ak0lRINA6NM.Pd7Gg--~B/aD0zMjEzO3c9NTAwMDthcHBpZD15dGFjaHlvbg--/https://s.yimg.com/os/creatr-uploaded-images/2024-10/1e116b50-84e5-11ef-b3bf-a1f02285a1ce",
+          "width": 5000,
+          "height": 3213,
+          "tag": "original"
+        },
+        {
+          "url": "https://s.yimg.com/uu/api/res/1.2/MNp6pgpb2la7lSCJ74HQmA--~B/Zmk9c3RyaW07aD0xMjg7dz0xNzA7YXBwaWQ9eXRhY2h5b24-/https://s.yimg.com/os/creatr-uploaded-images/2024-10/1e116b50-84e5-11ef-b3bf-a1f02285a1ce",
+          "width": 170,
+          "height": 128,
+          "tag": "170x128"
+        }
+      ]
+    },
+    "provider": {
+      "displayName": "Yahoo Finance",
+      "url": "http://finance.yahoo.com/"
+    },
+    "canonicalUrl": {
+      "url": "https://finance.yahoo.com/news/apples-ai-strategy-is-showing-troubling-cracks-150559429.html",
+      "site": "finance",
+      "region": "US",
+      "lang": "en-US"
+    },
+    "clickThroughUrl": {
+      "url": "https://finance.yahoo.com/news/apples-ai-strategy-is-showing-troubling-cracks-150559429.html",
+      "site": "finance",
+      "region": "US",
+      "lang": "en-US"
+    },
+    "metadata": {
+      "editorsPick": true
+    },
+    "finance": {
+      "premiumFinance": {
+        "isPremiumNews": false,
+        "isPremiumFreeNews": false
+      }
+    },
+    "storyline": {
+      "storylineItems": [
+        {
+          "content": {
+            "id": "9695204a-ecf9-34c2-aa8b-dd5e778ca4d5",
+            "contentType": "VIDEO",
+            "isHosted": true,
+            "title": "Morgan Stanley cut Apple price target over tariffs, Siri AI delay",
+            "thumbnail": {
+              "originalUrl": "https://s.yimg.com/os/creatr-uploaded-images/2025-03/957f3ad0-ff4e-11ef-bdeb-8eed7e7c9b68",
+              "originalWidth": 4552,
+              "originalHeight": 2562,
+              "caption": "",
+              "resolutions": null
+            },
+            "provider": {
+              "displayName": "Yahoo Finance Video",
+              "sourceId": "video.yahoofinance.com"
+            },
+            "previewUrl": null,
+            "providerContentUrl": "",
+            "canonicalUrl": {
+              "url": "https://finance.yahoo.com/video/morgan-stanley-cut-apple-price-143151141.html"
+            },
+            "clickThroughUrl": {
+              "url": "https://finance.yahoo.com/video/morgan-stanley-cut-apple-price-143151141.html"
+            }
+          }
+        },
+        {
+          "content": {
+            "id": "9c64fb97-0e39-36dd-bd55-55d1c14a1c10",
+            "contentType": "VIDEO",
+            "isHosted": true,
+            "title": "Goldman Sachs cuts S&P 500 target, citing Maleficent 7 weakness",
+            "thumbnail": {
+              "originalUrl": "https://s.yimg.com/os/creatr-uploaded-images/2025-03/68e677b0-ff47-11ef-bdff-d24e54d524c2",
+              "originalWidth": 5412,
+              "originalHeight": 3047,
+              "caption": "",
+              "resolutions": null
+            },
+            "provider": {
+              "displayName": "Yahoo Finance Video",
+              "sourceId": "video.yahoofinance.com"
+            },
+            "previewUrl": null,
+            "providerContentUrl": "",
+            "canonicalUrl": {
+              "url": "https://finance.yahoo.com/video/goldman-sachs-cuts-p-500-135025424.html"
+            },
+            "clickThroughUrl": {
+              "url": "https://finance.yahoo.com/video/goldman-sachs-cuts-p-500-135025424.html"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
