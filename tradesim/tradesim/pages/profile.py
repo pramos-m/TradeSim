@@ -15,47 +15,6 @@ from ..state.auth_state import AuthState
 def profile_page() -> rx.Component:
     return rx.box(
         rx.vstack(
-            # Sidebar (ya existe en otra rama, no modificamos)
-            rx.box(
-                rx.vstack(
-                    rx.image(src="/logo.svg", height="50px"),
-                    rx.vstack(
-                        rx.link(
-                            rx.hstack(
-                                rx.icon(tag="home", color="gray.500"),
-                                rx.text("Inicio", color="gray.700")
-                            ),
-                            href="/dashboard"
-                        ),
-                        rx.hstack(
-                            rx.icon(tag="trending_up", color="blue.500"),
-                            rx.text("Estadísticas", color="gray.700")
-                        ),
-                        rx.hstack(
-                            rx.icon(tag="file", color="gray.500"),
-                            rx.text("Documentos", color="gray.700")
-                        ),
-                        rx.hstack(
-                            rx.icon(tag="search", color="gray.500"),
-                            rx.text("Buscar", color="gray.700")
-                        ),
-                        spacing="4",
-                        align_items="start",
-                        width="100%",
-                        padding_left="4",
-                        margin_top="8"
-                    ),
-                    width="250px",
-                    height="100vh",
-                    border_right="1px solid",
-                    border_color="gray.200",
-                    position="fixed",
-                    left="0",
-                    top="0",
-                    background="white",
-                    z_index="10"
-                )
-            ),
             # Contenido principal
             rx.box(
                 rx.vstack(
