@@ -22,24 +22,14 @@ def get_user_by_id(db: Session, user_id: int):
     """Get user by ID."""
     return db.query(User).filter(User.id == user_id).first()
 
-
-# Add these to the existing functions
-def update_profile_picture(
-    db: Session, 
-    user_id: int, 
-    picture_data: bytes, 
-    picture_type: str
-) -> User:
+def update_profile_picture(db: Session, user_id: int, picture_data: bytes, picture_type: str) -> User:
     """Update user's profile picture."""
     user = get_user_by_id(db, user_id)
-    
     if user:
         user.profile_picture = picture_data
         user.profile_picture_type = picture_type
-        
         db.commit()
         db.refresh(user)
-    
     return user
 
 def get_user_profile_picture(db: Session, user_id: int):
