@@ -2,7 +2,7 @@ import reflex as rx
 
 def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     """
-    Creates a navbar component.
+    Creates a navbar component with a clickable username that navigates to the profile page.
 
     Args:
         user_name (str): The name of the user.
@@ -14,26 +14,41 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     """
     return rx.box(
         rx.hstack(
-            # Profile Section (Left Side)
-            rx.hstack(
-                rx.avatar(src=user_image_url, name=user_name, size="4"),  # Adjust the size of the profile picture
-                rx.text(user_name, font_size="1.5em", font_weight="bold"),  # Adjust the font size of the username
-                spacing="2",
-                align="center",
+            # Profile Section (Left Side) - Now clickable
+            rx.link(
+                rx.hstack(
+                    # Use rx.cond instead of Python's or operator
+                    rx.cond(
+                        user_image_url != "",
+                        rx.avatar(src=user_image_url, name=user_name, size="4"),
+                        rx.avatar(name=user_name, size="4")
+                    ),
+                    rx.text(user_name, font_size="1.5em", font_weight="bold"),
+                    spacing="2",
+                    align="center",
+                    _hover={"opacity": 0.8},
+                    transition="all 0.2s ease-in-out",
+                ),
+                href="/profile",
+                _hover={"text_decoration": "none"},
             ),
             # Spacer to push the logo to the far right
             rx.spacer(),
             # Logo (Far Right)
             rx.box(
-                rx.image(src=logo_url, width="120px"),  # Adjust the width of the logo
-                padding="0.5em",  # Add some padding around the logo
-                border_radius="md",  # Add border radius to the logo box
+                rx.image(src=logo_url, width="120px"),
+                padding="0.5em",
+                border_radius="md",
             ),
-            width="100%",  # Ensure the navbar spans the full width
-            padding="1em",  # Add some padding
-            bg="white",  # Set the background color of the navbar
-            border_bottom="1px solid #ddd",  # Add a border at the bottom
+            width="100%",
+            padding="1em",
+            bg="white",
+            border_bottom="1px solid #ddd",
+            position="fixed",
+            top="0",
+            left="0",
+            z_index="100",
         ),
-        width="100%",  # Ensure the navbar spans the full width
-        bg="white",  # Set the background color of the entire navbar
+        width="100%",
+        bg="white",
     )
