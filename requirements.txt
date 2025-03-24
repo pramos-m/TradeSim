@@ -9,3 +9,6 @@ passlib[bcrypt]
 python-multipart
 pydantic
 email-validator
+yfinance>=0.2.36
+plotly
+pandas
