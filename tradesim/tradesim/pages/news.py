@@ -20,7 +20,7 @@ def featured_news_card(article) -> rx.Component:
             rx.vstack(
                 rx.heading(
                     article.title, 
-                    size="3", 
+                    size="2",  # Título más grande para destacar
                     align="left", 
                     color=TEXT_DARK,
                     line_height="1.2",
@@ -53,7 +53,7 @@ def featured_news_card(article) -> rx.Component:
                     width="full",
                 ),
                 align_items="flex_start",
-                spacing="3",
+                spacing="4",  # Más espaciado
                 width="100%",
                 height="100%",
             ),
@@ -64,14 +64,15 @@ def featured_news_card(article) -> rx.Component:
         ),
         width="100%",
         height="100%",
-        padding="6",
+        padding="8",  # Más padding
         border_radius="xl",
         background="white",
-        shadow="lg",
-        _hover={"shadow": "xl", "transform": "translateY(-2px)"},
+        shadow="xl",  # Sombra más pronunciada
+        _hover={"shadow": "2xl", "transform": "translateY(-4px)"},
         transition="all 0.3s ease-in-out",
         border="1px solid",
         border_color="gray.100",
+        border_left=f"6px solid {GOOGLE_BLUE}",  # Borde izquierdo resaltado
     )
 
 def news_list_item(article) -> rx.Component:
@@ -173,13 +174,13 @@ def news_content() -> rx.Component:
         rx.flex(
             rx.heading(
                 "Noticias Financieras", 
-                size="2", 
+                size="1",  # Título más grande
                 color=GOOGLE_BLUE,
                 font_weight="normal"
             ),
             width="100%",
             border_bottom=f"2px solid {GOOGLE_BLUE}",
-            padding_bottom="2",
+            padding_bottom="4",  # Más padding
             margin_bottom="6",
         ),
         
@@ -210,45 +211,83 @@ def news_content() -> rx.Component:
                         margin_bottom="4"
                     ),
                     
-                    # Noticia destacada
-                    featured_news_card(NewsState.featured_news),
-                    
-                    # Lista de noticias recientes
-                    rx.cond(
-                        NewsState.has_more_than_one_news,
+                    # Layout de dos columnas con noticia destacada y recientes
+                    rx.grid(
+                        # Columna izquierda - Noticia destacada
                         rx.vstack(
                             rx.heading(
-                                "Noticias recientes", 
+                                "Noticia Destacada", 
                                 size="3", 
-                                margin_y="4",
                                 color=GOOGLE_BLUE,
-                                font_weight="normal"
+                                font_weight="normal",
+                                margin_bottom="4",
+                                text_align="left",
+                                border_bottom=f"1px solid {GOOGLE_BLUE_LIGHT}",
+                                padding_bottom="2",
                             ),
-                            rx.foreach(
-                                NewsState.recent_news_list,
-                                news_list_item
+                            featured_news_card(NewsState.featured_news),
+                            width="100%",
+                            height="100%",
+                            spacing="3",
+                        ),
+                        
+                        # Columna derecha - 3 noticias recientes
+                        rx.vstack(
+                            rx.heading(
+                                "Noticias Recientes", 
+                                size="3", 
+                                color=GOOGLE_BLUE,
+                                font_weight="normal",
+                                margin_bottom="4",
+                                text_align="left",
+                                border_bottom=f"1px solid {GOOGLE_BLUE_LIGHT}",
+                                padding_bottom="2",
                             ),
+                            rx.cond(
+                                NewsState.has_more_than_one_news,
+                                rx.box(
+                                    rx.foreach(
+                                        NewsState.recent_news_list,
+                                        news_list_item
+                                    ),
+                                    overflow_y="auto",
+                                    max_height="650px",
+                                ),
+                                rx.text("No hay noticias adicionales", color=TEXT_GRAY)
+                            ),
+                            height="100%",
                             width="100%",
                             spacing="3",
                         ),
-                        rx.box()  # No mostrar esta sección si no hay más que una noticia
+                        
+                        template_columns=["1fr", "1fr", "5fr 4fr"],  # Responsive layout
+                        gap="6",  # Más espacio entre columnas
+                        width="100%",
+                        display=rx.cond(NewsState.has_news, "grid", "none"),
+                        margin_bottom="8",  # Espacio adicional antes de la siguiente sección
                     ),
                     
-                    # Mostrar todas las noticias adicionales
+                    # Separador visual
+                    rx.divider(margin_y="6", border_color=GOOGLE_BLUE_LIGHT, border_width="2px"),
+                    
+                    # Sección inferior - Noticias adicionales
                     rx.vstack(
                         rx.heading(
-                            "Más noticias", 
+                            "Más noticias financieras", 
                             size="3", 
-                            margin_y="4",
                             color=GOOGLE_BLUE,
-                            font_weight="normal"
+                            font_weight="normal",
+                            margin_bottom="4",
+                            text_align="left",
+                            border_bottom=f"1px solid {GOOGLE_BLUE_LIGHT}",
+                            padding_bottom="2",
                         ),
                         rx.foreach(
                             NewsState.additional_news_list,
                             news_list_item
                         ),
                         width="100%",
-                        spacing="3",
+                        spacing="4",
                         display=rx.cond(NewsState.has_more_than_five_news, "block", "none"),
                     ),
                     
@@ -274,6 +313,7 @@ def news_content() -> rx.Component:
                                 padding_x="6"
                             ),
                             width="100%",
+                            margin_top="6",
                         ),
                         rx.box()
                     ),
@@ -287,7 +327,7 @@ def news_content() -> rx.Component:
         width="100%",
         spacing="4",
         background="white",
-        padding="4",
+        padding="6",  # Más padding
         border_radius="lg",
     )
 
