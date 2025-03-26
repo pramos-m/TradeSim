@@ -11,17 +11,17 @@ def clasificacion_page() -> rx.Component:
                 size="7",  # Adjust the font size of the title
                 margin_y="50",  # Add vertical margin to move the title down
                 align_self="flex-start",  # Align the title to the far left
-                margin_left="30",  # Add left margin to move the title slightly right
-                margin_top="50",  # Add top margin to move the title down
+                margin_left="50px",  # Add left margin to move the title slightly right
+                margin_top="30px",  # Add top margin to move the title down
             ),
             # First Box (Top 3)
             rx.box(
                 rx.text(
                     "TOP 3",
-                    font_size="12",  # Adjust the font size to make it bigger
+                    size="6",  # Adjust the font size to make it bigger
                     font_weight="bold",  # Make the text bold
-                    margin_top="120",  # Move the text down
-                    margin_left="120",  # Move the text to the right
+                    margin_top="20px",  # Move the text down
+                    margin_left="25px",  # Move the text to the right
                 ),
                 background_image="url('/top3bkg.png')",  # Path to the background picture
                 background_size="cover",  # Cover the entire box
@@ -32,14 +32,16 @@ def clasificacion_page() -> rx.Component:
                 padding="10",  # Add padding inside the box
                 border_radius="md",  # Optional: Add border radius to the box
                 box_shadow="md",  # Optional: Add box shadow
+                margin_top="20px",  # Add top margin to move the box down
             ),
             # Second Box (Top 4 to 10)
             rx.box(
                 rx.text(
                     "TOP 4 TO 10",
-                    font_size="3",  # Adjust the font size of the text
+                    size="5",  # Adjust the font size to make it bigger
                     font_weight="bold",  # Make the text bold
-                    margin="1",  # Adjust the margin around the text
+                    margin_top="20px",  # Move the text down
+                    margin_left="25px",  # Move the text to the right
                 ),
                 width="90%",  # Make the box skinnier by reducing the width
                 height="500px",  # Adjust the height of the second box
@@ -47,7 +49,8 @@ def clasificacion_page() -> rx.Component:
                 padding="10",  # Add padding inside the box
                 border_radius="md",  # Optional: Add border radius to the box
                 box_shadow="md",  # Optional: Add box shadow
-                background="#5271ff",  # Background color of the second box
+                background="lightgray",  # Background color of the second box
+                margin_top="25px",  # Add top margin to move the box down
             ),
             width="100%",  # Ensure the content spans the full width
             align_items="center",  # Center-align the content horizontally
