@@ -55,9 +55,7 @@ def buscador_page() -> rx.Component:
             # Search Bar
             rx.box(
                 rx.hstack(
-                    # Search Icon
                     rx.icon(tag="search", color="royalblue", box_size="6"),
-                    # Input Field
                     rx.input(
                         placeholder="Buscar acciones en el mercado",
                         value=SearchState.search_query,  # Bind to state
@@ -68,7 +66,6 @@ def buscador_page() -> rx.Component:
                         outline="none",
                         font_size="5",
                     ),
-                    # Search Button
                     rx.button(
                         "Buscar",
                         color="white",
@@ -94,11 +91,16 @@ def buscador_page() -> rx.Component:
             ),
             # Search Results
             rx.box(
-                rx.text(
-                    SearchState.search_result,  # Display the search result
-                    font_size="5",
-                    color="red",
-                    margin_top="20px",
+                rx.vstack(
+                    rx.foreach(
+                        SearchState.search_result.items(),  # Iterate over the dictionary
+                        lambda item: rx.text(
+                            f"{item[0]}: {item[1]}",  # Format each key-value pair
+                            font_size="5",
+                            color="royalblue",
+                            font_weight="bold",
+                        ),
+                    )
                 ),
                 width="80%",
                 margin_left="50px",
@@ -106,6 +108,7 @@ def buscador_page() -> rx.Component:
                 border_radius="md",
                 box_shadow="sm",
                 background="white",
+                margin_top="20px",
             ),
         )
     )
