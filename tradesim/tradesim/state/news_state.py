@@ -22,6 +22,7 @@ class NewsState(rx.State):
     show_all_news: bool = False
     page: int = 1
     max_articles: int = 10  # Número máximo de artículos por carga
+    selected_style: str = "panel"  # Estilo por defecto para la visualización de noticias
 
     # Configuración de GNews API
     GNEWS_API_KEY = "f767bfe6df4f747e6b77c0178e8cc0d8"
@@ -29,6 +30,18 @@ class NewsState(rx.State):
     
     # Términos de búsqueda simplificados para obtener más resultados
     SEARCH_QUERY = "bolsa acciones"
+    
+    def change_style(self, style: str):
+        """
+        Cambia el estilo de visualización de las noticias.
+        
+        Args:
+            style: El nuevo estilo ("panel", "publicaciones" o "financieras")
+        """
+        def update_style():
+            self.selected_style = style
+        
+        return update_style
     
     @rx.var
     def featured_news(self) -> Optional[NewsArticle]:
