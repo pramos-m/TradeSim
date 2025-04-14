@@ -1,8 +1,11 @@
+# <<<--- CODI COMPLET FINAL PER A news_state.py --- >>>
 import requests
 import reflex as rx
 from datetime import datetime, timedelta
 from typing import List, Optional
+import traceback # Per a millor debugging
 
+# --- Model de Dades ---
 class NewsArticle(rx.Base):
     """Modelo de datos para una noticia."""
     title: str
@@ -10,34 +13,27 @@ class NewsArticle(rx.Base):
     publisher: str
     date: str
     summary: str
-    image: str = ""  # URL de la imagen (si está disponible)
+    image: str = ""
 
+# --- Estat Principal ---
 class NewsState(rx.State):
     """Estado para la página de noticias."""
 
-    # Variables de estado
+    # --- Variables d'Estat ---
     processed_news: List[NewsArticle] = []
     is_loading: bool = False
     has_news: bool = False
-    show_all_news: bool = False
     page: int = 1
-    max_articles: int = 10
-    selected_style: str = "panel"
+    max_articles: int = 10  # Número màxim d'articles per càrrega
+    selected_style: str = "panel" # Controla la vista: "panel" o "publicaciones"
 
-    # Configuración de GNews API
-    GNEWS_API_KEY = "f767bfe6df4f747e6b77c0178e8cc0d8" # Reemplaza con tu clave API si es necesario
+    # --- Configuració de GNews API ---
+    GNEWS_API_KEY = "f767bfe6df4f747e6b77c0178e8cc0d8" # La teva clau API
     GNEWS_API_URL = "https://gnews.io/api/v4/search"
-    SEARCH_QUERY = "bolsa acciones OR mercados financieros OR economía global" # Query más amplio
+    # Query que va funcionar per obtenir 10 notícies
+    SEARCH_QUERY = "bolsa acciones"
 
-    @rx.event
-    def change_style(self, style: str):
-        """
-        Cambia el estilo de visualización de las noticias.
-        Es un event handler directo.
-        """
-        self.selected_style = style
-        # No devuelve nada explícitamente
-
+    # --- Variables Computades (Vars) ---
     @rx.var
     def featured_news(self) -> Optional[NewsArticle]:
         """Devuelve la primera noticia para destacar."""
@@ -47,18 +43,17 @@ class NewsState(rx.State):
 
     @rx.var
     def recent_news_list(self) -> List[NewsArticle]:
-        """Devuelve las noticias recientes (2-5)."""
+        """Devuelve las noticias recents (índexs 1, 2, 3) per al panell."""
         if len(self.processed_news) > 1:
-            # Asegura que no exceda el número de noticias disponibles
-            end_index = min(5, len(self.processed_news))
+            end_index = min(4, len(self.processed_news))
             return self.processed_news[1:end_index]
         return []
 
     @rx.var
     def additional_news_list(self) -> List[NewsArticle]:
-        """Devuelve noticias adicionales (a partir de la 6ª)."""
-        if len(self.processed_news) > 5:
-            return self.processed_news[5:]
+        """Devuelve noticias adicionales (a partir de la 5ª, índex 4)."""
+        if len(self.processed_news) > 4:
+            return self.processed_news[4:]
         return []
 
     @rx.var
@@ -67,13 +62,12 @@ class NewsState(rx.State):
         return len(self.processed_news) > 1
 
     @rx.var
-    def has_more_than_five_news(self) -> bool:
-        """Indica si hay más de 5 noticias disponibles."""
-        return len(self.processed_news) > 5
+    def has_more_than_five_news(self) -> bool: # Comprova si hi ha més de 4
+        """Indica si hay más de 4 noticias disponibles (per additional_news_list)."""
+        return len(self.processed_news) > 4
 
     @rx.var
     def news_display_text(self) -> str:
-        """Texto para mostrar sobre las noticias."""
         news_count = len(self.processed_news)
         if news_count > 0:
             return f"Mostrando {news_count} noticias recientes sobre mercados financieros"
@@ -84,36 +78,46 @@ class NewsState(rx.State):
 
     @rx.var
     def can_load_more(self) -> bool:
-        """Indica si se pueden cargar más noticias."""
-        # Solo permitir cargar más si tenemos alguna noticia y no estamos ya cargando
+        """Indica si es pot intentar carregar més (hi ha notícies i no està carregant)."""
+        # Aquesta lògica és simple, no garanteix que l'API tingui més pàgines.
         return len(self.processed_news) > 0 and not self.is_loading
 
+    # --- Gestors d'Events (Event Handlers) ---
+    @rx.event
+    def change_style(self, style: str):
+        """Canvia l'estil de visualització (panel / publicaciones)."""
+        self.selected_style = style
+
+    @rx.event
+    def open_url(self, url: str):
+        """Abre un enlace externo (sense argument 'external')."""
+        print(f"Intentando abrir URL: {url}")
+        if isinstance(url, str) and url.startswith(("http://", "https://")):
+             return rx.redirect(url)
+        else:
+             print(f"URL inválida o no externa: '{url}'. No se redirige.")
+             return # No fer res si la URL no és vàlida
+
+    # --- Lògica API ---
     @rx.event
     def get_news(self):
-        """Obtiene noticias desde GNews API."""
-        if self.is_loading: # Evitar cargas múltiples simultáneas
-            return
+        """Obtiene la primera página de noticias desde GNews API."""
+        if self.is_loading: return
         self.is_loading = True
         self.has_news = False
         self.processed_news = []
         self.page = 1
-
         try:
             params = {
-                "q": self.SEARCH_QUERY,
-                "token": self.GNEWS_API_KEY,
-                "lang": "es",
-                "country": "any",
-                "max": self.max_articles,
-                "sortby": "publishedAt",
-                # "from": "30d", # Quitar 'from' puede dar más resultados recientes
+                "q": self.SEARCH_QUERY, "token": self.GNEWS_API_KEY, "lang": "es",
+                "country": "any", "max": self.max_articles, "sortby": "publishedAt",
+                "from": "30d" # Buscar en els últims 30 dies
             }
-            print(f"Buscando noticias: '{self.SEARCH_QUERY}'")
+            print(f"Buscando noticias (página 1): '{self.SEARCH_QUERY}', from=30d")
             response = requests.get(self.GNEWS_API_URL, params=params)
-            response.raise_for_status() # Lanza excepción si hay error HTTP
+            response.raise_for_status()
             data = response.json()
             articles = data.get("articles", [])
-
             if articles:
                 processed_articles = []
                 for article in articles:
@@ -124,81 +128,50 @@ class NewsState(rx.State):
                         publisher = source.get("name", "Fuente desconocida")
                         date_str = article.get("publishedAt", "")
                         try:
-                            # Intenta parsear la fecha
                             date_obj = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
                             date_str = date_obj.strftime("%d %b %Y, %H:%M")
-                        except (ValueError, TypeError):
-                            date_str = "Fecha desconocida" # Fallback si el formato es incorrecto
-
+                        except (ValueError, TypeError): date_str = "Fecha desconocida"
                         summary = article.get("description", "Sin descripción disponible.")
-                        image = article.get("image", "") # URL de la imagen
-
-                        news_article = NewsArticle(
-                            title=title, url=url, publisher=publisher, date=date_str, summary=summary, image=image
-                        )
+                        image = article.get("image", "")
+                        news_article = NewsArticle(title=title, url=url, publisher=publisher, date=date_str, summary=summary, image=image)
                         processed_articles.append(news_article)
-                    except Exception as e_inner:
-                        print(f"Error procesando artículo individual: {e_inner}")
-
+                    except Exception as e_inner: print(f"Error procesando artículo individual: {e_inner}")
                 if processed_articles:
                     self.processed_news = processed_articles
                     self.has_news = True
                     print(f"Se procesaron {len(processed_articles)} noticias.")
-                else:
-                    print("No se pudieron procesar artículos válidos. Usando fallback.")
-                    self._create_fallback_news()
-            else:
-                print("La API no devolvió artículos. Usando fallback.")
-                self._create_fallback_news()
-
-        except requests.exceptions.RequestException as e_req:
-            print(f"Error de red al obtener noticias: {e_req}")
-            self._create_fallback_news()
-        except Exception as e_outer:
-            print(f"Error general al obtener noticias: {e_outer}")
-            import traceback
-            traceback.print_exc() # Imprime el traceback completo para depuración
-            self._create_fallback_news()
-        finally:
-            self.is_loading = False
+                else: self._create_fallback_news()
+            else: self._create_fallback_news()
+        except requests.exceptions.RequestException as e_req: print(f"Error de red: {e_req}"); self._create_fallback_news()
+        except Exception as e_outer: print(f"Error general: {e_outer}"); traceback.print_exc(); self._create_fallback_news()
+        finally: self.is_loading = False
 
     @rx.event
     def load_more_news(self):
         """Carga más noticias (siguiente página)."""
         if not self.can_load_more or self.is_loading:
+            print("No se puede cargar más o ya está cargando.")
             return
-
         self.is_loading = True
         self.page += 1
-
         try:
             params = {
-                "q": self.SEARCH_QUERY,
-                "token": self.GNEWS_API_KEY,
-                "lang": "es",
-                "country": "any",
-                "max": self.max_articles,
-                "page": self.page,
-                "sortby": "publishedAt",
-                # "from": "30d",
+                "q": self.SEARCH_QUERY, "token": self.GNEWS_API_KEY, "lang": "es",
+                "country": "any", "max": self.max_articles, "page": self.page,
+                "sortby": "publishedAt", "from": "30d"
             }
             print(f"Cargando más noticias (página {self.page})")
             response = requests.get(self.GNEWS_API_URL, params=params)
             response.raise_for_status()
             data = response.json()
             articles = data.get("articles", [])
-
             if articles:
                 new_articles = []
-                current_titles = {news.title for news in self.processed_news} # Para evitar duplicados
-
+                current_titles = {news.title for news in self.processed_news}
                 for article in articles:
                     try:
                         title = article.get("title", "Sin título")
-                        # Evita añadir noticias duplicadas por título
-                        if title in current_titles:
-                            continue
-
+                        if title in current_titles: continue
                         url = article.get("url", "#")
                         source = article.get("source", {})
                         publisher = source.get("name", "Fuente desconocida")
@@ -206,104 +179,76 @@ class NewsState(rx.State):
                         try:
                             date_obj = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
                             date_str = date_obj.strftime("%d %b %Y, %H:%M")
-                        except (ValueError, TypeError):
-                            date_str = "Fecha desconocida"
-
+                        except (ValueError, TypeError): date_str = "Fecha desconocida"
                         summary = article.get("description", "Sin descripción disponible.")
                         image = article.get("image", "")
-
-                        news_article = NewsArticle(
-                            title=title, url=url, publisher=publisher, date=date_str, summary=summary, image=image
-                        )
+                        news_article = NewsArticle(title=title, url=url, publisher=publisher, date=date_str, summary=summary, image=image)
                         new_articles.append(news_article)
-                        current_titles.add(title) # Añade el título al set de control
-                    except Exception as e_inner:
-                        print(f"Error procesando artículo adicional: {e_inner}")
-
+                        current_titles.add(title)
+                    except Exception as e_inner: print(f"Error procesando artículo adicional: {e_inner}")
                 if new_articles:
-                    self.processed_news.extend(new_articles)
-                    print(f"Se añadieron {len(new_articles)} noticias adicionales.")
+                    self.processed_news.extend(new_articles); print(f"Se añadieron {len(new_articles)} noticias.")
                 else:
                     print("No se encontraron más noticias nuevas en esta página.")
-                    # Considera no añadir fallback aquí para evitar repeticiones si la API simplemente no tiene más páginas
+                    # Opcionalment pots cridar a _add_more_fallback_news() aquí
             else:
                 print("No hay más páginas de noticias disponibles desde la API.")
-                # Considera no añadir fallback aquí
+                # Opcionalment pots cridar a _add_more_fallback_news() aquí
+        except requests.exceptions.RequestException as e_req: print(f"Error de red al cargar más: {e_req}")
+        except Exception as e_outer: print(f"Error general al cargar más: {e_outer}"); traceback.print_exc()
+        finally: self.is_loading = False
 
-        except requests.exceptions.RequestException as e_req:
-            print(f"Error de red al cargar más noticias: {e_req}")
-            # Considera no añadir fallback aquí
-        except Exception as e_outer:
-            print(f"Error general al cargar más noticias: {e_outer}")
-            import traceback
-            traceback.print_exc()
-            # Considera no añadir fallback aquí
-        finally:
-            self.is_loading = False
-
+    # --- Mètodes Privats de Fallback ---
     def _create_fallback_news(self):
         """Crea noticias de respaldo si la API falla en la carga inicial."""
         print("Generando noticias de respaldo...")
         today = datetime.now()
         fallback_news = []
-        for i in range(1, 8): # Genera 7 noticias de ejemplo
-            past_date = today - timedelta(days=i)
+        titles = [
+            "El Ibex 35 cierra la semana con alzas", "La inflación muestra signos de moderación",
+            "Wall Street alcanza nuevos máximos", "Materias primas recuperan terreno",
+            "Inversores aumentan exposición a riesgo", "Criptomonedas recuperan terreno",
+            "Sector inmobiliario enfrenta desafíos"
+        ]
+        publishers = ["Expansión", "El Economista", "Cinco Días", "La Vanguardia", "El País", "Expansión", "Cinco Días"]
+        for i in range(min(len(titles), 7)): # Genera fins a 7 notícies
+            past_date = today - timedelta(days=i+1)
             date_str = past_date.strftime("%d %b %Y, %H:%M")
             fallback_news.append(
                 NewsArticle(
-                    title=f"Noticia de Respaldo {i}: Evento Importante en Mercados",
-                    url="#",
-                    publisher="Fuente Simulada",
-                    date=date_str,
-                    summary=f"Este es un resumen de la noticia de respaldo número {i}. Describe un evento significativo que afecta a los mercados financieros globales y locales.",
-                    image=f"/api/placeholder/400/{200 + i*10}" # Imagen placeholder diferente
+                    title=titles[i], url="#fallback", publisher=publishers[i], date=date_str,
+                    summary=f"Este es un resumen de la noticia de respaldo número {i+1} sobre {titles[i].lower()}.",
+                    image=f"/api/placeholder/400/{200 + i*10}?text=Fallback+{i+1}"
                 )
             )
         self.processed_news = fallback_news
         self.has_news = True
-        self.is_loading = False # Asegura que is_loading se desactive
+        self.is_loading = False
 
     def _add_more_fallback_news(self):
-        """Añade más noticias de respaldo si 'load_more' falla (opcional)."""
-        # Esta función podría ser innecesaria si prefieres no añadir más fallbacks
+        """Añade más noticias de respaldo si 'load_more' falla."""
         print("Añadiendo noticias de respaldo adicionales...")
         start_index = len(self.processed_news) + 1
         today = datetime.now()
         new_fallback = []
-        for i in range(start_index, start_index + 5): # Añade 5 más
-            past_date = today - timedelta(days=i)
+        titles = [
+            "Bancos centrales analizan impacto fintech", "Oro alcanza nuevo récord histórico",
+            "Energías renovables atraen inversiones récord", "Nuevas regulaciones de sostenibilidad impactan",
+            "Sector tecnológico lidera fusiones y adquisiciones"
+        ]
+        publishers = ["El Economista", "Expansión", "Cinco Días", "La Vanguardia", "El País"]
+        for i in range(min(len(titles), 5)): # Afegeix fins a 5 més
+            current_index = start_index + i
+            past_date = today - timedelta(days=current_index)
             date_str = past_date.strftime("%d %b %Y, %H:%M")
             news_item = NewsArticle(
-                title=f"Noticia de Respaldo Adicional {i}",
-                url="#",
-                publisher="Fuente Simulada Extra",
-                date=date_str,
-                summary=f"Detalles adicionales sobre eventos del mercado en la noticia {i}.",
-                image=f"/api/placeholder/400/{250 + i*5}"
+                title=titles[i], url="#fallback_more", publisher=publishers[i], date=date_str,
+                summary=f"Detalles adicionales sobre {titles[i].lower()} en la noticia de respaldo {current_index}.",
+                image=f"/api/placeholder/400/{250 + i*5}?text=Fallback+{current_index}"
             )
-            # Evitar duplicados (aunque improbable con este método)
             if not any(existing.title == news_item.title for existing in self.processed_news):
                 new_fallback.append(news_item)
-
         if new_fallback:
             self.processed_news.extend(new_fallback)
             print(f"Se añadieron {len(new_fallback)} noticias de respaldo adicionales.")
-        self.is_loading = False # Asegura que is_loading se desactive
-
-    @rx.event
-    def toggle_show_all(self):
-        """Alterna entre mostrar todas las noticias o solo las primeras (no usado actualmente)."""
-        self.show_all_news = not self.show_all_news
-    @rx.event
-    def open_url(self, url: str):
-        """Abre un enlace en una nueva ventana/pestaña."""
-        print(f"Intentando abrir URL: {url}")
-        # Validación básica de URL (simplificada)
-        if isinstance(url, str) and url.startswith(("http://", "https://")):
-             # *** CORRECCIÓ: Eliminar external=True ***
-             return rx.redirect(url)
-        else:
-             print(f"URL inválida o no externa: '{url}'. No se redirige.")
-             # Opcional: redirigir a una página de error o similar
-             # return rx.redirect("/error") # Exemple
-             return # No fer res si la URL no és vàlida
+        self.is_loading = False
