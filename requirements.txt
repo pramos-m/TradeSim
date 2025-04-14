@@ -1,4 +1,4 @@
-reflex==0.7.3
+reflex==0.7.6
 sqlalchemy
 python-dotenv
 passlib
