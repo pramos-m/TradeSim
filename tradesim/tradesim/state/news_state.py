@@ -294,14 +294,16 @@ class NewsState(rx.State):
     def toggle_show_all(self):
         """Alterna entre mostrar todas las noticias o solo las primeras (no usado actualmente)."""
         self.show_all_news = not self.show_all_news
-
     @rx.event
     def open_url(self, url: str):
         """Abre un enlace en una nueva ventana/pestaña."""
         print(f"Intentando abrir URL: {url}")
-        # Validación básica de URL
-        if not url or not url.startswith(("http://", "https://")):
-            print(f"URL inválida o vacía: '{url}'. Redirigiendo a GNews.")
-            # Podrías redirigir a una página de error o a la página principal de GNews
-            return rx.redirect("https://gnews.io/", external=True)
-        return rx.redirect(url, external=True)
+        # Validación básica de URL (simplificada)
+        if isinstance(url, str) and url.startswith(("http://", "https://")):
+             # *** CORRECCIÓ: Eliminar external=True ***
+             return rx.redirect(url)
+        else:
+             print(f"URL inválida o no externa: '{url}'. No se redirige.")
+             # Opcional: redirigir a una página de error o similar
+             # return rx.redirect("/error") # Exemple
+             return # No fer res si la URL no és vàlida
