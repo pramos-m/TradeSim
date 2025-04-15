@@ -15,11 +15,21 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     return rx.box(
         rx.hstack(
             # Profile Section (Left Side)
-            rx.hstack(
-                rx.avatar(src=user_image_url, name=user_name, size="4"),  # Adjust the size of the profile picture
-                rx.text(user_name, font_size="1.5em", font_weight="bold"),  # Adjust the font size of the username
-                spacing="2",
-                align="center",
+            rx.link(
+                rx.hstack(
+                    rx.avatar(
+                        src=user_image_url,
+                        name=user_name, # Manté el 'name' original si vols
+                        # <<< AFEGEIX AIXÒ per evitar l'error >>>
+                        fallback=rx.cond(user_name != "", user_name[:1].upper(), "?"),
+                        size="4" # Mida original
+                    ),
+                    rx.text(user_name, font_size="1.5em", font_weight="bold"),  # Adjust the font size of the username
+                    spacing="2",
+                    align="center",
+                ),
+                href="/profile",
+                _hover={"text_decoration": "none"},
             ),
             # Spacer to push the logo to the far right
             rx.spacer(),
