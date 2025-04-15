@@ -10,7 +10,7 @@ from ..controller.user import get_user_by_email, get_user_by_username, get_user_
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
+DEFAULT_AVATAR = "/default_avatar.png" # Pots definir la constant aquí
 class AuthState(rx.State):
     """Estado de autenticación mejorado."""
     # Authentication state
@@ -28,6 +28,7 @@ class AuthState(rx.State):
     email: str = ""
     password: str = ""
     confirm_password: str = ""
+    profile_image_url: str = DEFAULT_AVATAR 
     
     # Add this to track the last path processed
     last_path: str = ""
