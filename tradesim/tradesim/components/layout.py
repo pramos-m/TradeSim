@@ -18,7 +18,7 @@ def layout(content: rx.Component) -> rx.Component:
         rx.vstack(
             navbar(
                 user_name=AuthState.username,
-                user_image_url=AuthState.profile_image_url, # <<< CANVIA AIXÒ! Posa AuthState.profile_image_url
+                user_image_url=AuthState.profile_image_url,
                 logo_url="/logonavbar.png",
             ),
             content,
