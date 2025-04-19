@@ -10,7 +10,8 @@ init_db_tables()
 
 # Importar las páginas
 from .pages.index import index
-from .pages.dashboard import dashboard
+# from .pages.dashboard import dashboard # Remove old import
+from .pages.dashboard_page import dashboard_page
 from .pages.login import login
 from .pages.clasificacion import clasificacion
 from .pages.noticias import noticias
@@ -22,7 +23,8 @@ from .state.auth_state import AuthState
 
 # Agregar las rutas
 app.add_page(index)
-app.add_page(dashboard)
+# app.add_page(dashboard) # Remove old page route
+app.add_page(dashboard_page) # Keep the new page, it's already routed to /dashboard
 app.add_page(login)
 app.add_page(clasificacion)
 app.add_page(noticias)
