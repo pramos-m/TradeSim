@@ -1,13 +1,22 @@
+IMAGE_NAME=dashboard-web # <-- Define el nombre de la imagen (ajusta si Docker la llama diferente)
+
 # Variables
 COMPOSE = docker-compose.yaml
 COMPOSE_CMD = docker compose -f ${COMPOSE}
 
-# Targets
-all:
-	$(COMPOSE_CMD) up --detach --build
+# Targets principales
+all: build up
+
+build:
+	# Construye forzando --no-cache y pasando CACHEBUST
+	$(COMPOSE_CMD) build --no-cache --build-arg CACHEBUST=$(date +%s)
+
+up:
+	$(COMPOSE_CMD) up --detach
 
 stop:
-	@if [ -n "$$(docker ps -aq)" ]; then \
+	# Detiene contenedores solo si existen
+	@if [ -n "$$($(COMPOSE_CMD) ps -q)" ]; then \
 		$(COMPOSE_CMD) stop; \
 	fi
 
@@ -15,32 +24,27 @@ down: stop
 	$(COMPOSE_CMD) down
 
 ps:
-	@if [ -n "$$(docker ps -aq)" ]; then \
-		docker ps; \
-	fi
+	$(COMPOSE_CMD) ps
 
 clean: down
-	@if [ -n "$$(docker ps -aq)" ]; then \
-		docker stop $$(docker ps -aq); \
-		docker rm $$(docker ps -aq); \
-	fi
-	@if [ -n "$$(docker images -aq)" ]; then \
-		docker rmi $$(docker images -aq); \
-	fi
-	@if [ -n "$$(docker volume ls -q)" ]; then \
-		docker volume rm $$(docker volume ls -q); \
-	fi
-	@if [ -n "$$(docker network ls -q --filter type=custom)" ]; then \
-		docker network rm $$(docker network ls -q --filter type=custom); \
-	fi
-	@echo "Deleted all Docker containers, volumes, networks, and images successfully"
+	# Limpieza más agresiva (opcional)
+	@echo "Ejecutando limpieza agresiva (contenedores, imágenes no usadas, volúmenes no usados)..."
+	docker container prune -f || true
+	docker image prune -a -f || true
+	docker volume prune -f || true
+	docker network prune -f || true
+	@echo "Limpieza agresiva completada."
 
-fclean: clean
-	@docker system prune -a --force
+fclean:
+	# Detiene contenedores y ELIMINA VOLÚMENES (-v)
+	$(COMPOSE_CMD) down -v
+	# Elimina la imagen específica de la aplicación
+	@echo "Intentando eliminar imagen $(IMAGE_NAME)..."
+	docker rmi $(IMAGE_NAME) 2>/dev/null || echo "Imagen $(IMAGE_NAME) no encontrada o no se pudo eliminar."
 
 logs:
 	$(COMPOSE_CMD) logs -f
 
-re: clean all
+re: fclean all
 
-.PHONY: all stop down ps clean fclean logs re
+.PHONY: all build up stop down ps clean fclean logs re

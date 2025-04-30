@@ -1,6 +1,6 @@
 services:
   web:
-    container_name: reflex
+    container_name: reflex # Mantenemos el nombre del contenedor si lo prefieres
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,12 +8,13 @@ services:
       - "3000:3000"
       - "8000:8000"
     volumes:
-      - .:/app
-      - sqlite_data:/app/data
+      # - .:/app # <-- LÍNEA ELIMINADA O COMENTADA - ¡IMPORTANTE!
+      - sqlite_data:/app/data # Montaje solo para la base de datos persistente
     environment:
-      - REFLEX_ENV=dev
-      - DATABASE_URL=sqlite:///data/database.db
-      - PYTHONPATH=/app
+      - REFLEX_ENV=dev # O prod si lo prefieres para la ejecución normal
+      - DATABASE_URL=sqlite:///data/tradesim.db # Ruta DENTRO del contenedor
+      - PYTHONUNBUFFERED=1 # Para que los logs salgan directos
+      - PYTHONPATH=/app # Para asegurar que Python encuentre tus módulos
     networks:
       - tradesim
     restart: always
@@ -24,7 +25,7 @@ services:
       retries: 3
 
 volumes:
-  sqlite_data:
+  sqlite_data: # Define el volumen nombrado para persistir la BBDD
 
 networks:
   tradesim:
