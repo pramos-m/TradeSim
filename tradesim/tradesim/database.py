@@ -30,7 +30,7 @@ def get_db():
 
 # --- Data Population Logic ---
 SYMBOLS_TO_POPULATE = ["AAPL", "GOOGL", "MSFT", "TSLA"] # Acciones a poblar
-HISTORY_PERIOD = "1y" # Periodo de historial a obtener de yfinance
+HISTORY_PERIOD = "MAX" # Periodo de historial a obtener de yfinance
 DEFAULT_SECTOR_ID = 1 # ID del sector por defecto (ej. Tecnología)
 
 def populate_simulated_history(db: Session):

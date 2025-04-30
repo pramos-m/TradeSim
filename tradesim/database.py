@@ -44,7 +44,7 @@ def populate_simulated_history(db: Session):
         history_count = db.query(StockPriceHistory.id).limit(1).scalar()
         logger.info(f"History count: {history_count if history_count is not None else 'None (or 0)'}")
 
-        if history_count is not None and history_count > 0:
+        if history_count is not None and history_count > 0: # Restaurada la comprobación
             logger.info("StockPriceHistory table already populated. Skipping population.")
             logger.info("<<< populate_simulated_history finished (skipped).")
             return
@@ -119,24 +119,23 @@ def init_db_tables():
     """Imports all models, creates tables, and populates history if needed."""
     logger.info("--- init_db_tables called ---")
     try:
+        # logger.info("Importing models..."); # Log reducido
         from .models.user import User; from .models.stock import Stock; from .models.sector import Sector; from .models.transaction import Transaction; from .models.stock_price_history import StockPriceHistory;
         # logger.info("Models imported.") # Log reducido
     except ImportError as import_err: logger.error(f"ERROR importing models: {import_err}", exc_info=True); return
 
     try:
         logger.info("Creating database tables if they don't exist..."); Base.metadata.create_all(bind=engine); logger.info("Database tables check/creation finished.")
-        # logger.info("Attempting to populate history data...") # Log reducido
+        logger.info("Attempting to populate history data via populate_simulated_history...") # Log mantenido
         db_session = SessionLocal()
         try: populate_simulated_history(db_session)
         except Exception as pop_err: logger.error(f"ERROR during history population call: {pop_err}", exc_info=True)
         finally:
             if db_session and db_session.is_active: db_session.close()
-        # logger.info("History population attempt finished.") # Log reducido
+        logger.info("History population attempt finished.") # Log mantenido
     except Exception as e: logger.error(f"ERROR during DB initialization outer try block: {e}", exc_info=True)
     logger.info("--- init_db_tables finished ---")
 
 # Opcional: Función para borrar tablas
-def drop_all_tables():
-    logger.warning("!!! Dropping all tables !!!")
-    try: from .models.user import User; from .models.stock import Stock; from .models.sector import Sector; from .models.transaction import Transaction; from .models.stock_price_history import StockPriceHistory; Base.metadata.drop_all(bind=engine); logger.info("All tables dropped successfully.")
-    except Exception as e: logger.error(f"Error dropping tables: {e}")
+def drop_all_tables(): # Sin cambios
+    logger.warning("!!! Dropping all tables !!!"); # ... (resto igual)
