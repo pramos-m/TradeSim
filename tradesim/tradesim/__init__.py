@@ -17,8 +17,9 @@ from .pages.noticias import noticias
 from .pages.profile import profile
 from .pages.buscador import buscador  # Eliminamos la referencia a `stock`
 
-# Importar el estado
+# Importar los estados
 from .state.auth_state import AuthState
+from .state.ranking_state import RankingState
 
 # Agregar las rutas
 app.add_page(index)
