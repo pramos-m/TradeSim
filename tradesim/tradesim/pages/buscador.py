@@ -118,7 +118,7 @@ def buscador_page() -> rx.Component:
                 padding="16px",
                 border_radius="md",
                 box_shadow="sm",
-                background="white",
+                background="lightblue",
                 margin_top="20px",
                 border="4px solid black",
             ),
