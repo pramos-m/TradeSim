@@ -1,12 +1,10 @@
 import reflex as rx
 from ..components.layout import layout
-from ..state.search_state import SearchState  # Import the state
+from ..state.search_state import SearchState
 
 def buscador_page() -> rx.Component:
-    """Placeholder page for Buscador."""
     return layout(
         rx.vstack(
-            # Title
             rx.heading(
                 "Buscador",
                 size="7",
@@ -15,7 +13,6 @@ def buscador_page() -> rx.Component:
                 margin_left="50px",
                 margin_top="30px",
             ),
-            # Centered Text
             rx.center(
                 rx.vstack(
                     rx.text(
@@ -52,14 +49,13 @@ def buscador_page() -> rx.Component:
                 ),
                 width="100%",
             ),
-            # Search Bar
             rx.box(
                 rx.hstack(
                     rx.icon(tag="search", color="royalblue", box_size="6"),
                     rx.input(
                         placeholder="Buscar acciones en el mercado",
-                        value=SearchState.search_query,  # Bind to state
-                        on_change=SearchState.set_search_query,  # Update state on input
+                        value=SearchState.search_query,
+                        on_change=SearchState.set_search_query,
                         width="100%",
                         padding="8",
                         border="none",
@@ -74,7 +70,7 @@ def buscador_page() -> rx.Component:
                         padding_y="8",
                         border_radius="md",
                         _hover={"background": "blue"},
-                        on_click=SearchState.search_stock,  # Trigger search on click
+                        on_click=SearchState.search_stock,
                     ),
                     spacing="1",
                     align_items="center",
@@ -89,26 +85,42 @@ def buscador_page() -> rx.Component:
                 box_shadow="sm",
                 margin_left="50px",
             ),
-            # Search Results
+            # Results Box
             rx.box(
                 rx.vstack(
-                    rx.foreach(
-                        SearchState.search_result.items(),  # Iterate over the dictionary
-                        lambda item: rx.text(
-                            f"{item[0]}: {item[1]}",  # Format each key-value pair
-                            font_size="5",
-                            color="royalblue",
-                            font_weight="bold",
+                    # Show logo if present
+                    rx.cond(
+                        SearchState.search_result["Logo"],
+                        rx.image(
+                            src=SearchState.search_result["Logo"],
+                            width="80px",
+                            height="80px",
+                            margin_bottom="10px",
                         ),
-                    )
+                    ),
+                    # Show details except Logo
+                    rx.foreach(
+                        SearchState.search_result,
+                        lambda item: rx.cond(
+                            item[0] != "Logo",
+                            rx.text(
+                                f"{item[0]}: {item[1]}",
+                                font_size="4",
+                                color="black",
+                                font_weight="bold",
+                                margin_bottom="2px",
+                            ),
+                        ),
+                    ),
                 ),
-                width="80%",
+                width="20%",
                 margin_left="50px",
-                padding="20",
+                padding="16px",
                 border_radius="md",
                 box_shadow="sm",
                 background="white",
                 margin_top="20px",
+                border="4px solid black",
             ),
         )
     )

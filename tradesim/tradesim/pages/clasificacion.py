@@ -37,7 +37,7 @@ def clasificacion_page() -> rx.Component:
             # Second Box (Top 4 to 10)
             rx.box(
                 rx.text(
-                    "TOP 4 TO 10",
+                    "TOP 4 TO 10",  
                     size="5",  # Adjust the font size to make it bigger
                     font_weight="bold",  # Make the text bold
                     margin_top="20px",  # Move the text down

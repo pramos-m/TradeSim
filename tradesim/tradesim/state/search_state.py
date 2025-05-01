@@ -1,5 +1,6 @@
 import reflex as rx
 import yfinance as yf
+import os
 
 class SearchState(rx.State):
     # User's search input
@@ -20,8 +21,16 @@ class SearchState(rx.State):
             stock = yf.Ticker(self.search_query)
             info = stock.info  # Fetch stock information
 
+            # Construct the logo file path
+            logo_file = f"assets/{self.search_query.upper()}.png"
+            if os.path.exists(logo_file):
+                logo_url = f"/{logo_file}"  # Use the relative path for the logo
+            else:
+                logo_url = None  # No logo available
+
             # Store the result as a dictionary
             self.search_result = {
+                "Logo": logo_url,  # Use the static logo URL
                 "Name": info.get("longName", "N/A"),
                 "Symbol": info.get("symbol", "N/A"),
                 "Current Price": info.get("currentPrice", "N/A"),
