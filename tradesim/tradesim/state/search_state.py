@@ -3,40 +3,92 @@ import yfinance as yf
 import os
 
 class SearchState(rx.State):
-    # User's search input
-    search_query: str = ""  # This will store the stock symbol entered by the user
+    # Mapping of company names to symbols (add more as needed)
+    company_map = {
+        "APPLE": "AAPL",
+        "MICROSOFT": "MSFT",
+        "GOOGLE": "GOOGL",
+        "ALPHABET": "GOOGL",
+        "AMAZON": "AMZN",
+        "META": "META",
+        "FACEBOOK": "META",
+        "TESLA": "TSLA",
+        "NVIDIA": "NVDA",
+        "BERKSHIRE HATHAWAY": "BRK.B",
+        "JPMORGAN": "JPM",
+        "VISA": "V",
+        "UNITEDHEALTH": "UNH",
+        "HOME DEPOT": "HD",
+        "PROCTER & GAMBLE": "PG",
+        "MASTERCARD": "MA",
+        "ELI LILLY": "LLY",
+        "BROADCOM": "AVGO",
+        "EXXON MOBIL": "XOM",
+        "COSTCO": "COST",
+        "ABBVIE": "ABBV",
+        "PEPSICO": "PEP",
+        "COCA-COLA": "KO",
+        "COCA COLA": "KO",
+        "MERCK": "MRK",
+        "WALMART": "WMT",
+        "BANK OF AMERICA": "BAC",
+        "DISNEY": "DIS",
+        "ADOBE": "ADBE",
+        "PFIZER": "PFE",
+        "CISCO": "CSCO",
+        "ORACLE": "ORCL",
+        "AT&T": "T",
+        "INTEL": "INTC",
+        "NETFLIX": "NFLX",
+        "SALESFORCE": "CRM",
+        "ABBOTT": "ABT",
+        "MCDONALD'S": "MCD",
+        "NIKE": "NKE",
+        "QUALCOMM": "QCOM",
+        "VERIZON": "VZ",
+        "THERMO FISHER": "TMO",
+        "DANAHER": "DHR",
+        "ACCENTURE": "ACN",
+    }
 
-    # Search result to display below the search bar
-    search_result: dict = {}  # Store the result as a dictionary for better formatting
+    search_query: str = ""
+    search_result: dict = {}
 
     def search_stock(self):
         """Fetch stock data using the yfinance API."""
-        # Check if the search query is empty
         if not self.search_query:
-            self.search_result = {"Error": "Please enter a valid stock symbol."}
+            self.search_result = {"Error": "Please enter a valid stock symbol or company name."}
             return
 
         try:
-            # Use yfinance to fetch stock data
-            stock = yf.Ticker(self.search_query)
-            info = stock.info  # Fetch stock information
+            query = self.search_query.strip().upper()
+            # Check if query is a symbol or a company name
+            symbol = query
+            if query not in self.company_map and not os.path.exists(os.path.join("assets", f"{query}.png")):
+                # Try to match by company name
+                symbol = self.company_map.get(query)
+                if not symbol:
+                    self.search_result = {"Error": "Company not found."}
+                    return
 
-            # Use os.path.join for the file check (works on all OS)
-            logo_file = os.path.join("assets", f"{self.search_query.upper()}.png")
+            if query in self.company_map:
+                symbol = self.company_map[query]
+
+            stock = yf.Ticker(symbol)
+            info = stock.info
+
+            logo_file = os.path.join("assets", f"{symbol.upper()}.png")
             if os.path.exists(logo_file):
-                # Always use forward slashes for the URL
-                logo_url = f"/assets/{self.search_query.upper()}.png"
+                logo_url = f"/assets/{symbol.upper()}.png"
             else:
-                logo_url = None  # No logo available
+                logo_url = None
 
-            # Store the result as a dictionary
             self.search_result = {
-                "Logo": logo_url,  # Use the static logo URL
+                "Logo": logo_url,
                 "Name": info.get("longName", "N/A"),
                 "Symbol": info.get("symbol", "N/A"),
                 "Current Price": info.get("currentPrice", "N/A"),
                 "Market Cap": info.get("marketCap", "N/A"),
             }
         except Exception as e:
-            # Handle errors (e.g., invalid stock symbol or API issues)
             self.search_result = {"Error": f"Error fetching data: {str(e)}"}

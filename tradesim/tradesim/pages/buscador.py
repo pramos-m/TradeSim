@@ -87,44 +87,75 @@ def buscador_page() -> rx.Component:
             ),
             # Results Box
             rx.box(
-                rx.vstack(
-                    # Show logo if present
-                    rx.cond(
-                        SearchState.search_result["Logo"],
-                        rx.image(
-                            src=SearchState.search_result["Logo"],
-                            width="80px",
-                            height="80px",
-                            margin_bottom="10px",
+                rx.hstack(
+                    # Left: Price, Name, Buy button
+                    rx.vstack(
+                        rx.text(
+                            f"{SearchState.search_result['Current Price']} €",
+                            font_size="10",
+                            font_weight="bold",
+                            color="black",
                         ),
+                        rx.text(
+                            f"{SearchState.search_result['Name']}",
+                            font_size="5",
+                            color="black",
+                            margin_top="2px",
+                        ),
+                        rx.button(
+                            "Buy",
+                            color="white",
+                            background="royalblue",
+                            border_radius="md",
+                            width="80px",
+                            margin_top="16px",
+                        ),
+                        align_items="flex-start",
+                        spacing="2",  # Use integer string
+                        flex="1",
                     ),
-                    # Show details except Logo
-                    rx.foreach(
-                        SearchState.search_result,
-                        lambda item: rx.cond(
-                            item[0] != "Logo",
-                            rx.text(
-                                f"{item[0]}: {item[1]}",
-                                font_size="4",
-                                color="black",
-                                font_weight="bold",
-                                margin_bottom="2px",
+                    # Right: Logo and Ver Detalles button
+                    rx.vstack(
+                        rx.cond(
+                            SearchState.search_result["Logo"],
+                            rx.image(
+                                src=SearchState.search_result["Logo"],
+                                width="65px",
+                                height="65px",
                             ),
                         ),
+                        rx.button(
+                            "Ver Detalles",
+                            color="royalblue",
+                            background="white",
+                            border="2px solid royalblue",
+                            border_radius="md",
+                            width="100px",
+                            white_space="nowrap",
+                        ),
+                        align_items="center",
+                        spacing="2",  # Use integer string
+                        flex="1",
+                        margin_top="10px",
                     ),
+                    spacing="6",  # Use integer string for main hstack spacing
+                    align_items="right",
+                    justify_content="space-between",
+                    width="100%",
                 ),
-                width="20%",
-                margin_left="50px",
-                padding="16px",
-                border_radius="md",
+                width="300px",
+                min_width="260px",
+                padding="20px",
+                border_radius="16px",
                 box_shadow="sm",
-                background="lightblue",
+                background="#dbeafe",
                 margin_top="20px",
-                border="4px solid black",
-            ),
+                border="none",
+                margin_left="50px",
+            )
         )
     )
-
+    
 buscador = rx.page(
     route="/buscador",
     title="TradeSim - Buscador"
