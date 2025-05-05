@@ -15,7 +15,7 @@ from .pages.login import login
 from .pages.clasificacion import clasificacion
 from .pages.noticias import noticias
 from .pages.profile import profile
-from .pages.buscador import buscador  # Eliminamos la referencia a `stock`
+from .pages.detalles_accion import detalles_accion
 
 # Importar los estados
 from .state.auth_state import AuthState
@@ -28,7 +28,7 @@ app.add_page(login)
 app.add_page(clasificacion)
 app.add_page(noticias)
 app.add_page(profile)
-app.add_page(buscador)
+app.add_page(detalles_accion)
 
 # Establecer el estado
 app.state = AuthState
