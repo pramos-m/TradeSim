@@ -108,7 +108,7 @@ def buscador_page() -> rx.Component:
                             background="royalblue",
                             border_radius="md",
                             width="80px",
-                            margin_top="16px",
+                            margin_top="18px",
                         ),
                         align_items="flex-start",
                         spacing="0",  # No spacing between price and name
