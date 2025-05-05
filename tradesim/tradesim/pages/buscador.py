@@ -92,15 +92,15 @@ def buscador_page() -> rx.Component:
                     rx.vstack(
                         rx.text(
                             f"{SearchState.search_result['Current Price']} €",
-                            font_size="10",
+                            font_size="25px",  # Much bigger price
                             font_weight="bold",
                             color="black",
                         ),
                         rx.text(
                             f"{SearchState.search_result['Name']}",
-                            font_size="5",
+                            font_size="12px",
                             color="black",
-                            margin_top="2px",
+                            margin_top="0px",  # Remove extra margin
                         ),
                         rx.button(
                             "Buy",
@@ -111,7 +111,7 @@ def buscador_page() -> rx.Component:
                             margin_top="16px",
                         ),
                         align_items="flex-start",
-                        spacing="2",  # Use integer string
+                        spacing="0",  # No spacing between price and name
                         flex="1",
                     ),
                     # Right: Logo and Ver Detalles button
@@ -120,7 +120,7 @@ def buscador_page() -> rx.Component:
                             SearchState.search_result["Logo"],
                             rx.image(
                                 src=SearchState.search_result["Logo"],
-                                width="65px",
+                                width="100px",
                                 height="65px",
                             ),
                         ),
@@ -133,13 +133,13 @@ def buscador_page() -> rx.Component:
                             width="100px",
                             white_space="nowrap",
                         ),
-                        align_items="center",
-                        spacing="2",  # Use integer string
+                        align_items="flex-start",  # Align logo to the top
+                        spacing="2",
                         flex="1",
-                        margin_top="10px",
+                        # Remove margin_top here
                     ),
-                    spacing="6",  # Use integer string for main hstack spacing
-                    align_items="right",
+                    spacing="6",
+                    align_items="flex-start",  # Align both columns to the top
                     justify_content="space-between",
                     width="100%",
                 ),
