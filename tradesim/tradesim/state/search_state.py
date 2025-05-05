@@ -21,10 +21,11 @@ class SearchState(rx.State):
             stock = yf.Ticker(self.search_query)
             info = stock.info  # Fetch stock information
 
-            # Construct the logo file path
-            logo_file = f"assets/{self.search_query.upper()}.png"
+            # Use os.path.join for the file check (works on all OS)
+            logo_file = os.path.join("assets", f"{self.search_query.upper()}.png")
             if os.path.exists(logo_file):
-                logo_url = f"/{logo_file}"  # Use the relative path for the logo
+                # Always use forward slashes for the URL
+                logo_url = f"/assets/{self.search_query.upper()}.png"
             else:
                 logo_url = None  # No logo available
 
