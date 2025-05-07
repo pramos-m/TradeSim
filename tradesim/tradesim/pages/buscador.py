@@ -13,13 +13,15 @@ def buscador_page() -> rx.Component:
                 margin_left="50px",
                 margin_top="30px",
             ),
-            rx.center(
+            # Centered intro texts
+            rx.box(
                 rx.vstack(
                     rx.text(
                         "Encuentra Tu",
                         size="8",
                         font_weight="normal",
-                        margin_left="50px",
+                        text_align="center",
+                        width="100%",
                         margin_top="20px",
                     ),
                     rx.text(
@@ -27,27 +29,32 @@ def buscador_page() -> rx.Component:
                         size="8",
                         font_weight="bold",
                         color="royalblue",
-                        margin_left="50px",
+                        text_align="center",
+                        width="100%",
+                        margin_top="0px",
                     ),
-                    rx.box(
-                        rx.text(
-                            "En esta herramienta de búsqueda, puede explorar una amplia gama de acciones globales de varios mercados. Encuentre datos en tiempo real sobre las empresas y tome decisiones de inversión informadas con facilidad.",
-                            font_size="5",
-                            font_weight="normal",
-                            color="gray",
-                            line_height="1.5",
-                            margin_top="10px",
-                        ),
-                        width="60%",
-                        padding="20",
-                        margin_top="30",
-                        border_radius="md",
-                        box_shadow="sm",
-                        background="white",
-                        margin_left="50px",
-                    ),
+                    align_items="center",
+                    width="100%",
                 ),
                 width="100%",
+                display="flex",
+                justify_content="center",
+            ),
+            rx.box(
+                rx.text(
+                    "En esta herramienta de búsqueda, puede explorar una amplia gama de acciones globales de varios mercados. Encuentre datos en tiempo real sobre las empresas y tome decisiones de inversión informadas con facilidad.",
+                    font_size="10",
+                    font_weight="normal",
+                    color="gray",
+                    line_height="1.5",
+                    text_align="center",
+                    width="650px",
+                    margin_top="10px",
+                    align_self="center",
+                ),
+                width="100%",
+                display="flex",
+                justify_content="center",
             ),
             rx.box(
                 rx.hstack(
@@ -81,9 +88,10 @@ def buscador_page() -> rx.Component:
                     background="white",
                     margin_top="10px",
                 ),
-                width="80%",
+                width="500px",
                 box_shadow="sm",
-                margin_left="50px",
+                margin_top="20px",
+                align_self="center",
             ),
             # Results Box: only show if a search has been made
             rx.cond(
@@ -157,9 +165,11 @@ def buscador_page() -> rx.Component:
                     background="#dbeafe",
                     margin_top="20px",
                     border="none",
-                    margin_left="50px",
+                    align_self="center",
                 ),
             ),
+            align_items="center",
+            width="100%",
         )
     )
 
