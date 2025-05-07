@@ -85,77 +85,84 @@ def buscador_page() -> rx.Component:
                 box_shadow="sm",
                 margin_left="50px",
             ),
-            # Results Box
-            rx.box(
-                rx.hstack(
-                    # Left: Price, Name, Buy button
-                    rx.vstack(
-                        rx.text(
-                            f"{SearchState.search_result['Current Price']} €",
-                            font_size="25px",  # Much bigger price
-                            font_weight="bold",
-                            color="black",
-                        ),
-                        rx.text(
-                            f"{SearchState.search_result['Name']}",
-                            font_size="12px",
-                            color="black",
-                            margin_top="0px",  # Remove extra margin
-                        ),
-                        rx.button(
-                            "Buy",
-                            color="white",
-                            background="royalblue",
-                            border_radius="md",
-                            width="80px",
-                            margin_top="18px",
-                        ),
-                        align_items="flex-start",
-                        spacing="0",  # No spacing between price and name
-                        flex="1",
-                    ),
-                    # Right: Logo and Ver Detalles button
-                    rx.vstack(
-                        rx.cond(
-                            SearchState.search_result["Logo"],
-                            rx.image(
-                                src=SearchState.search_result["Logo"],
-                                width="100px",
-                                height="65px",
+            # Results Box: only show if a search has been made
+            rx.cond(
+                SearchState.search_result.contains("Name"),
+                rx.box(
+                    rx.hstack(
+                        # Left: Price, Name, Buy button
+                        rx.vstack(
+                            rx.text(
+                                f"{SearchState.search_result['Current Price']} €",
+                                font_size="25px",
+                                font_weight="bold",
+                                color="black",
                             ),
+                            rx.text(
+                                f"{SearchState.search_result['Name']}",
+                                font_size="12px",
+                                color="black",
+                                margin_top="0px",
+                            ),
+                            rx.button(
+                                "Buy",
+                                color="white",
+                                background="royalblue",
+                                border_radius="md",
+                                width="80px",
+                                margin_top="18px",
+                                cursor="pointer",
+                            ),
+                            align_items="flex-start",
+                            spacing="0",
+                            flex="1",
                         ),
-                        rx.button(
-                            "Ver Detalles",
-                            color="royalblue",
-                            background="white",
-                            border="2px solid royalblue",
-                            border_radius="md",
-                            width="100px",
-                            white_space="nowrap",
+                        # Right: Logo and Ver Detalles button
+                        rx.vstack(
+                            rx.cond(
+                                SearchState.search_result["Logo"],
+                                rx.image(
+                                    src=SearchState.search_result["Logo"],
+                                    width="100px",
+                                    height="65px",
+                                ),
+                            ),
+                            rx.button(
+                                "Ver Detalles",
+                                color="black",
+                                background="none",
+                                border="none",
+                                border_radius="md",
+                                width="auto",
+                                white_space="nowrap",
+                                text_decoration="underline",
+                                font_weight="normal",
+                                cursor="pointer",
+                                _hover={"text_decoration": "underline", "color": "royalblue"},
+                            ),
+                            align_items="flex-start",
+                            spacing="2",
+                            flex="1",
                         ),
-                        align_items="flex-start",  # Align logo to the top
-                        spacing="2",
-                        flex="1",
-                        # Remove margin_top here
+                        spacing="6",
+                        align_items="flex-start",
+                        justify_content="space-between",
+                        width="100%",
                     ),
-                    spacing="6",
-                    align_items="flex-start",  # Align both columns to the top
-                    justify_content="space-between",
-                    width="100%",
+                    width="300px",
+                    min_width="260px",
+                    padding="20px",
+                    border_radius="16px",
+                    box_shadow="sm",
+                    background="#dbeafe",
+                    margin_top="20px",
+                    border="none",
+                    margin_left="50px",
                 ),
-                width="300px",
-                min_width="260px",
-                padding="20px",
-                border_radius="16px",
-                box_shadow="sm",
-                background="#dbeafe",
-                margin_top="20px",
-                border="none",
-                margin_left="50px",
-            )
+            ),
         )
     )
-    
+
 buscador = rx.page(
     route="/buscador",
     title="TradeSim - Buscador"
