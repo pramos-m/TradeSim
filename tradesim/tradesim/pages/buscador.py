@@ -93,6 +93,17 @@ def buscador_page() -> rx.Component:
                 margin_top="20px",
                 align_self="center",
             ),
+            
+            rx.cond(
+                SearchState.search_result.contains("Error"),
+                rx.text(
+                    SearchState.search_result["Error"],
+                    color="red",
+                    font_weight="bold",
+                    margin_top="20px",
+                    align_self="center",
+                ),
+            ),
             # Results Box: only show if a search has been made
             rx.cond(
                 SearchState.search_result.contains("Name"),
