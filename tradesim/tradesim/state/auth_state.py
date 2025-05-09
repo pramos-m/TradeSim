@@ -1,22 +1,22 @@
-# tradesim/state/auth_state.py (FINAL FUNCIONAL v10 - CORREGIDO)
+# tradesim/state/auth_state.py (FINAL v19 - SIN @rx.background)
 import reflex as rx
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 import os
-import requests
-import traceback
 import pandas as pd
 import plotly.graph_objects as go
-import yfinance as yf # Importar yfinance
+import yfinance as yf
 from ..database import SessionLocal
 from ..models.user import User
 from ..models.stock import Stock
 from ..models.stock_price_history import StockPriceHistory
+from ..models.transaction import Transaction
 import logging
 from decimal import Decimal
 import random
 import asyncio
+import requests
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +34,7 @@ class NewsArticle(rx.Base):
     summary: str
     image: str = ""
 
+
 class PortfolioItem(rx.Base):
     symbol: str
     name: str
@@ -42,11 +43,29 @@ class PortfolioItem(rx.Base):
     current_value: float
     logo_url: str
 
+
+class TransactionDisplayItem(rx.Base):
+    timestamp: str
+    symbol: str
+    quantity: int
+    price: float
+    type: str
+
+
+class SearchResultItem(rx.Base):
+    Symbol: str = ""
+    Name: str = "No encontrado"
+    Current_Price: str = "N/A"
+    Logo: str = "/default_logo.png"
+
+
 class AuthState(rx.State):
     """Estado GLOBAL combinado."""
+
     # --- Variables ---
     is_authenticated: bool = False
-    auth_token: str = rx.Cookie(name="auth_token", max_age=ACCESS_TOKEN_EXPIRE_MINUTES*60)
+    portfolio_chart_hover_info: Dict | None = None
+    auth_token: str = rx.Cookie(name="auth_token", max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     processed_token: bool = False
     loading: bool = False
     active_tab: str = "login"
@@ -65,28 +84,59 @@ class AuthState(rx.State):
     news_page: int = 1
     max_articles: int = 10
     selected_style: str = "panel"
-    GNEWS_API_KEY = "f767bfe6df4f747e6b77c0178e8cc0d8"
-    GNEWS_API_URL = "https://gnews.io/api/v4/search"
-    SEARCH_QUERY = "bolsa acciones"
+    GNEWS_API_KEY: str = "f767bfe6df4f747e6b77c0178e8cc0d8"
+    GNEWS_API_URL: str = "https://gnews.io/api/v4/search"
+    SEARCH_QUERY: str = "bolsa acciones"
 
     balance_date: str = datetime.now().strftime("%d/%m/%Y")
     daily_pnl: float = 0.0
     monthly_pnl: float = 0.0
     yearly_pnl: float = 0.0
-    daily_pnl_chart_data: pd.DataFrame = pd.DataFrame(columns=['time', 'price'])
-    monthly_pnl_chart_data: pd.DataFrame = pd.DataFrame(columns=['time', 'price'])
-    yearly_pnl_chart_data: pd.DataFrame = pd.DataFrame(columns=['time', 'price'])
+    daily_pnl_chart_data: pd.DataFrame = pd.DataFrame(columns=["time", "price"])
+    monthly_pnl_chart_data: pd.DataFrame = pd.DataFrame(columns=["time", "price"])
+    yearly_pnl_chart_data: pd.DataFrame = pd.DataFrame(columns=["time", "price"])
 
     portfolio_items: List[PortfolioItem] = []
     total_portfolio_value: float = 0.0
-
     selected_period: str = "1M"
-    portfolio_chart_data: pd.DataFrame = pd.DataFrame(columns=['time', 'total_value'])
-    portfolio_chart_hover_info: Dict | None = None
+    portfolio_chart_data: pd.DataFrame = pd.DataFrame(columns=["time", "total_value"])
+    # portfolio_chart_hover_info: Dict | None = None # This was duplicated, ensure only one definition
     portfolio_show_absolute_change: bool = False
     is_loading_portfolio_chart: bool = False
+    recent_transactions: List[TransactionDisplayItem] = []
 
-    # --- Métodos Autenticación y Noticias (Sin cambios) ---
+    # Variables para Buscador
+    search_query: str = ""
+    search_result: SearchResultItem = SearchResultItem()
+    is_searching: bool = False
+    search_error: str = ""
+
+    # Variables for Stock Detail Page
+    viewing_stock_symbol: str = ""
+    current_stock_info: Dict[str, Any] = {}
+    current_stock_metrics: Dict[str, str] = {}
+    current_stock_history: pd.DataFrame = pd.DataFrame(columns=["time", "price"])
+    current_stock_selected_period: str = "1M"
+    is_loading_current_stock_details: bool = False
+    stock_detail_chart_hover_info: Dict | None = None
+
+    @rx.var
+    def current_stock_metrics_list(self) -> List[Tuple[str, str]]:
+        """
+        Convierte el diccionario current_stock_metrics en una lista de tuplas (clave, valor)
+        para ser usada con rx.foreach.
+        """
+        return list(self.current_stock_metrics.items())
+
+    # --- Métodos Autenticación ---
+    @rx.var
+    def is_current_stock_info_empty(self) -> bool:
+        """
+        Devuelve True si current_stock_info está vacío, False en caso contrario.
+        Un diccionario vacío se evalúa como Falsy en Python.
+        """
+        return not self.current_stock_info
+
     def create_access_token(self, user_id: int) -> str:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         data = {"sub": str(user_id), "exp": expire}
@@ -102,14 +152,15 @@ class AuthState(rx.State):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id_str = payload.get("sub")
-            if user_id_str:
-                 return int(user_id_str)
-            return -1 # No sub claim
+            if user_id_str is None:
+                logger.error("Token payload does not contain 'sub' (user_id).")
+                return -1
+            return int(user_id_str)
         except jwt.ExpiredSignatureError:
-            logger.warning("Token expired.")
+            logger.info("Token has expired.")
             return -1
         except (JWTError, ValueError, TypeError) as e:
-            logger.error(f"Token verification error: {e}")
+            logger.error(f"Invalid token: {e}")
             return -1
 
     @rx.var
@@ -117,7 +168,7 @@ class AuthState(rx.State):
         return self.router.page.path == "/login"
 
     @rx.event
-    async def on_load(self): # Simplificado
+    async def on_load(self):
         current_path = self.router.page.path
         if self.processed_token and self.last_path == current_path:
             return
@@ -135,9 +186,8 @@ class AuthState(rx.State):
                 self.user_id = None
             if self.auth_token:
                 self.auth_token = ""
-            return # @require_auth maneja el redirect
+            return
         db = SessionLocal()
-        user_valid = False
         try:
             user = db.query(User).filter(User.id == user_id_from_token).first()
             if user:
@@ -147,8 +197,6 @@ class AuthState(rx.State):
                     self.account_balance = float(user.account_balance or 0.0)
                     self.user_id = user.id
                     self.is_authenticated = True
-                    logger.info(f"User {self.user_id} loaded.")
-                user_valid = True
                 if current_path == "/login":
                     yield rx.redirect("/dashboard")
                     return
@@ -167,13 +215,13 @@ class AuthState(rx.State):
             self.user_id = None
             self.auth_token = ""
         finally:
-             if db and db.is_active:
-                 db.close()
+            if db and db.is_active:
+                db.close()
         if self.is_authenticated and current_path == "/noticias" and not self.processed_news:
-            self.get_news()
+            yield self.get_news()
 
     @rx.event
-    async def login(self): # ... (igual) ...
+    async def login(self):
         self.error_message = ""
         self.loading = True
         if not self.email or not self.password:
@@ -213,7 +261,7 @@ class AuthState(rx.State):
                 db.close()
 
     @rx.event
-    async def register(self): # ... (igual) ...
+    async def register(self):
         self.error_message = ""
         self.loading = True
         if not self.username or not self.email or not self.password:
@@ -227,7 +275,10 @@ class AuthState(rx.State):
         db = None
         try:
             db = SessionLocal()
-            existing_user = db.query(User).filter( (User.email.ilike(self.email.strip().lower())) | (User.username.ilike(self.username.strip())) ).first()
+            existing_user = db.query(User).filter(
+                (User.email.ilike(self.email.strip().lower())) |
+                (User.username.ilike(self.username.strip()))
+            ).first()
             if existing_user:
                 self.error_message = "Usuario/email ya existen"
                 self.loading = False
@@ -263,7 +314,7 @@ class AuthState(rx.State):
                 db.close()
 
     @rx.event
-    def logout(self): # ... (igual) ...
+    def logout(self):
         self.is_authenticated = False
         self.username = ""
         self.email = ""
@@ -280,10 +331,15 @@ class AuthState(rx.State):
         self.daily_pnl = 0.0
         self.monthly_pnl = 0.0
         self.yearly_pnl = 0.0
-        self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
+        self.portfolio_chart_data = pd.DataFrame(columns=['time','total_value'])
+        self.recent_transactions = []
+        self.search_query = ""
+        self.search_result = SearchResultItem()
+        self.search_error = ""
+        self.is_searching = False
         return rx.redirect("/")
 
-    # Setters...
+    # --- Setters for form fields ---
     def set_active_tab(self, tab: str):
         self.active_tab = tab
         self.error_message = ""
@@ -318,19 +374,18 @@ class AuthState(rx.State):
         self.selected_style = style
 
     @rx.event
-    def open_url_script(self, url: str): # ... (igual) ...
+    def open_url_script(self, url: str):
         if isinstance(url, str) and url.startswith(("http://", "https://")):
             safe_url = url.replace("\\", "\\\\").replace("'", "\\'")
             js_command = f"window.open('{safe_url}', '_blank')"
             return rx.call_script(js_command)
         else:
-            logger.warning(f"URL inv\u00E1lida para script: '{url}'.")
-            return rx.console_log(f"URL inv\u00E1lida para script: {url}")
+            logger.warning(f"Invalid URL provided for opening: '{url}'.")
+            return rx.console_log(f"Invalid URL for script: {url}")
 
     @rx.event
-    def get_news(self): # ... (igual) ...
-        if self.is_loading_news:
-            return
+    def get_news(self):
+        if self.is_loading_news: return
         self.is_loading_news = True
         self.has_news = False
         self.processed_news = []
@@ -345,121 +400,142 @@ class AuthState(rx.State):
                 processed_articles = []
                 for article in articles:
                     try:
-                        title = article.get("title", "?")
+                        title = article.get("title", "Sin título")
                         url = article.get("url", "#")
-                        src = article.get("source", {})
-                        pub = src.get("name", "?")
-                        dt_str = article.get("publishedAt", "")
-                        sumry = article.get("description", "")
-                        img = article.get("image", "")
-                        dt_formatted = "?"
-                        if dt_str:
-                            try:
-                                dt_formatted = datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ").strftime("%d %b %Y, %H:%M")
-                            except ValueError:
-                                dt_formatted = "?"
-                        processed_articles.append(NewsArticle(title=title, url=url, publisher=pub, date=dt_formatted, summary=sumry, image=img))
-                    except Exception as e:
-                        logger.error(f"Error procesando article: {e}")
-                if processed_articles:
+                        source_info = article.get("source", {})
+                        publisher = source_info.get("name", "Desconocido")
+                        published_at_str = article.get("publishedAt", "")
+                        summary = article.get("description", "No hay resumen disponible.")
+                        image_url = article.get("image", "")
+                        date_formatted = "Fecha desconocida"
+                        if published_at_str:
+                            try: 
+                                dt_obj = datetime.strptime(published_at_str, "%Y-%m-%dT%H:%M:%SZ")
+                                date_formatted = dt_obj.strftime("%d %b %Y, %H:%M")
+                            except ValueError: 
+                                logger.warning(f"Could not parse date: {published_at_str}")
+                        processed_articles.append(NewsArticle(
+                            title=title, url=url, publisher=publisher, 
+                            date=date_formatted, summary=summary, image=image_url
+                        ))
+                    except Exception as e: 
+                        logger.error(f"Error processing individual news article: {e}", exc_info=True)
+                if processed_articles: 
                     self.processed_news = processed_articles
                     self.has_news = True
-                else:
+                    logger.info(f"Successfully loaded {len(self.processed_news)} news articles.")
+                else: 
+                    logger.warning("API returned articles, but none could be processed.")
                     self._create_fallback_news()
-            else:
+            else: 
+                logger.info("No news articles found for the query.")
                 self._create_fallback_news()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error red news: {e}")
+        except requests.exceptions.RequestException as e: 
+            logger.error(f"Network error fetching news: {e}", exc_info=True)
             self._create_fallback_news()
-        except Exception as e:
-            logger.error(f"Error get_news: {e}")
+        except Exception as e: 
+            logger.error(f"Unexpected error in get_news: {e}", exc_info=True)
             self._create_fallback_news()
-        finally:
+        finally: 
             self.is_loading_news = False
 
     @rx.event
-    def load_more_news(self): # ... (igual) ...
-        if not self.can_load_more or self.is_loading_news:
-            return
+    def load_more_news(self):
+        if not self.can_load_more or self.is_loading_news: return
         self.is_loading_news = True
         self.news_page += 1
         try:
-            params = {"q": self.SEARCH_QUERY, "token": self.GNEWS_API_KEY, "lang": "es", "country": "any", "max": self.max_articles, "page": self.news_page, "sortby": "publishedAt", "from": "30d"}
+            params = {
+                "q": self.SEARCH_QUERY, "token": self.GNEWS_API_KEY, "lang": "es", 
+                "country": "any", "max": self.max_articles, "page": self.news_page, 
+                "sortby": "publishedAt", "from": "30d"
+            }
             response = requests.get(self.GNEWS_API_URL, params=params)
             response.raise_for_status()
             data = response.json()
             articles = data.get("articles", [])
             if articles:
-                new_articles = []
+                new_articles_processed = []
                 current_titles = {news.title for news in self.processed_news}
                 for article in articles:
-                    try:
-                        title = article.get("title", "?")
-                        if title in current_titles:
-                            continue
+                    try: 
+                        title = article.get("title", "Sin título")
+                        if title in current_titles: continue
                         url = article.get("url", "#")
-                        src = article.get("source", {})
-                        pub = src.get("name", "?")
-                        dt_str = article.get("publishedAt", "")
-                        sumry = article.get("description", "")
-                        img = article.get("image", "")
-                        dt_formatted = "?"
-                        if dt_str:
-                            try:
-                                dt_formatted = datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ").strftime("%d %b %Y, %H:%M")
-                            except ValueError:
-                                dt_formatted = "?"
-                        news_article = NewsArticle(title=title, url=url, publisher=pub, date=dt_formatted, summary=sumry, image=img)
-                        new_articles.append(news_article)
+                        source_info = article.get("source", {})
+                        publisher = source_info.get("name", "Desconocido")
+                        published_at_str = article.get("publishedAt", "")
+                        summary = article.get("description", "No hay resumen disponible.")
+                        image_url = article.get("image", "")
+                        date_formatted = "Fecha desconocida"
+                        if published_at_str: 
+                            try: 
+                                dt_obj = datetime.strptime(published_at_str, "%Y-%m-%dT%H:%M:%SZ")
+                                date_formatted = dt_obj.strftime("%d %b %Y, %H:%M")
+                            except ValueError: 
+                                logger.warning(f"Could not parse date for additional news: {published_at_str}")
+                        news_item = NewsArticle(
+                            title=title, url=url, publisher=publisher, 
+                            date=date_formatted, summary=summary, image=image_url
+                        )
+                        new_articles_processed.append(news_item)
                         current_titles.add(title)
-                    except Exception as e:
-                        logger.error(f"Error procesando art extra: {e}")
-                if new_articles:
-                    self.processed_news.extend(new_articles)
-                    logger.info(f"Añadidas {len(new_articles)} noticias.")
-                else:
-                    logger.info("No más noticias nuevas.")
-            else:
-                logger.info("No más páginas API.")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error red load_more: {e}")
-        except Exception as e:
-            logger.error(f"Error load_more: {e}")
-        finally:
+                    except Exception as e: 
+                        logger.error(f"Error processing additional news article: {e}", exc_info=True)
+                if new_articles_processed: 
+                    self.processed_news.extend(new_articles_processed)
+                    logger.info(f"Added {len(new_articles_processed)} more news articles. Total: {len(self.processed_news)}")
+                else: 
+                    logger.info("No new, unique articles found in this batch.")
+            else: 
+                logger.info("No more articles returned from API.")
+        except requests.exceptions.RequestException as e: 
+            logger.error(f"Network error during load_more_news: {e}", exc_info=True)
+        except Exception as e: 
+            logger.error(f"Unexpected error in load_more_news: {e}", exc_info=True)
+        finally: 
             self.is_loading_news = False
 
     def _create_fallback_news(self):
-        logger.warning("Generando fallback news...")
-        # ... (lógica igual - assuming correct indentation inside)
-
-    def _add_more_fallback_news(self):
-        logger.warning("Añadiendo fallback news...")
-        # ... (lógica igual - assuming correct indentation inside)
+        logger.warning("Creating fallback news item due to error or no results.")
+        self.processed_news = [NewsArticle(
+            title="Error al cargar noticias", 
+            url="#", 
+            publisher="Sistema", 
+            date="", 
+            summary="No se pudieron obtener las noticias. Inténtelo de nuevo más tarde.", 
+            image=""
+        )]
+        self.has_news = True
 
     # --- Métodos / Variables Computadas del Dashboard y Portfolio ---
-
-    # PNL (calculado para AAPL para las PNL cards)
     def _calculate_stock_pnl(self, symbol: str, period: str, quantity: int) -> Tuple[Optional[float], pd.DataFrame]:
         df_history = self._fetch_stock_history_data(symbol, period)
         pnl: Optional[float] = None
         if not df_history.empty and len(df_history) >= 2:
-            try:
+            try: 
                 prices = df_history['price'].dropna()
-                if len(prices) >= 2:
+                if len(prices) >= 2: 
                     start_price = float(prices.iloc[0])
                     end_price = float(prices.iloc[-1])
                     pnl = (end_price - start_price) * quantity
-            except Exception as e:
+            except Exception as e: 
                 logger.error(f"Error PNL {symbol} ({period}): {e}")
                 pnl = None
         return pnl, df_history
 
-    # Carga Portfolio (Usa Precios Reales API)
     def _load_simulated_portfolio_with_api_prices(self):
-        logger.info("--- Loading Portfolio with API Prices START ---")
+        logger.info("--- Loading Simulated Portfolio with Real-Time API Prices START ---")
         symbols_hardcoded = ['MSFT', 'AAPL', 'NVDA', 'GOOGL', 'TSLA']
         quantities_hardcoded = {'MSFT': 15, 'AAPL': 25, 'NVDA': 5, 'GOOGL': 30, 'TSLA': 10}
-        logo_placeholders = { "MSFT": "/microsoft_logo.png", "AAPL": "/apple_logo.png", "NVDA": "/default_logo.png", "GOOGL": "/google_logo.png", "TSLA": "/tesla_logo.png", "DEFAULT": "/default_logo.png" }
+        logo_placeholders = {
+            "MSFT": "/microsoft_logo.png", 
+            "AAPL": "/apple_logo.png", 
+            "NVDA": "/default_logo.png", 
+            "GOOGL": "/google_logo.png", 
+            "TSLA": "/tesla_logo.png", 
+            "DEFAULT": "/default_logo.png"
+        }
         portfolio_list = []
         calculated_total_value = 0.0
         db = SessionLocal()
@@ -467,67 +543,80 @@ class AuthState(rx.State):
             for symbol in symbols_hardcoded:
                 current_price = 0.0
                 stock_name = symbol
-                try:
-                    # logger.info(f"Fetching current price for {symbol}...") # Log reducido
+                logo_url = logo_placeholders.get(symbol, logo_placeholders["DEFAULT"])
+                try: 
                     ticker = yf.Ticker(symbol)
-                    hist_1d = ticker.history(period="1d")
-                    if not hist_1d.empty:
-                        current_price = float(hist_1d['Close'].iloc[-1])
-                    else: # Fallback a info si history falla
-                        info = ticker.info
-                        price_val = info.get("currentPrice", info.get("regularMarketPrice"))
-                        if price_val:
-                            current_price = float(price_val)
-                        else:
+                    info = ticker.info
+                    price_val = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose") or info.get("bid")
+                    stock_name_api = info.get("longName") or info.get("shortName", symbol)
+                    logo_url_api = info.get("logo_url")
+                    if price_val is not None: 
+                        current_price = float(price_val)
+                    else: 
+                        hist_1d = ticker.history(period="1d")
+                        if not hist_1d.empty and 'Close' in hist_1d.columns: 
+                            current_price = float(hist_1d['Close'].iloc[-1])
+                        else: 
                             logger.warning(f"Could not fetch price for {symbol}. Using 0.")
-                    # Obtener nombre de la DB como fuente principal si existe
-                    stock_db = db.query(Stock.name).filter(Stock.symbol == symbol).first()
-                    stock_name = stock_db.name if stock_db else ticker.info.get("longName", symbol) # Nombre API como fallback
-
-                except Exception as api_err:
-                    logger.error(f"yfinance error for {symbol}: {api_err}")
-                    stock_db = db.query(Stock.name).filter(Stock.symbol == symbol).first()
-                    stock_name = stock_db.name if stock_db else symbol # Fallback nombre DB
-
+                            current_price = 0.0
+                    stock_name = stock_name_api if stock_name_api else symbol
+                    if logo_url_api: 
+                        logo_url = logo_url_api
+                    if not stock_name or stock_name == symbol: 
+                        stock_db_entry = db.query(Stock.name).filter(Stock.symbol == symbol).first()
+                        stock_name = stock_db_entry.name if stock_db_entry else symbol
+                except Exception as api_err: 
+                    logger.error(f"yfinance error for {symbol}: {api_err}. Falling back.")
+                    stock_db_entry = db.query(Stock.name).filter(Stock.symbol == symbol).first()
+                    stock_name = stock_db_entry.name if stock_db_entry else symbol
+                    current_price = 0.0
                 simulated_quantity = quantities_hardcoded.get(symbol, 0)
                 current_value = simulated_quantity * current_price
-                logo_url = logo_placeholders.get(symbol, logo_placeholders["DEFAULT"])
-                portfolio_list.append( PortfolioItem( symbol=symbol, name=stock_name, quantity=simulated_quantity, current_price=current_price, current_value=current_value, logo_url=logo_url ) )
+                portfolio_list.append(
+                    PortfolioItem(
+                        symbol=symbol, 
+                        name=stock_name, 
+                        quantity=simulated_quantity, 
+                        current_price=current_price, 
+                        current_value=current_value, 
+                        logo_url=logo_url
+                    )
+                )
                 calculated_total_value += current_value
             self.portfolio_items = sorted(portfolio_list, key=lambda x: x.current_value, reverse=True)
             self.total_portfolio_value = calculated_total_value
-            logger.info(f"Portfolio state updated: items={len(self.portfolio_items)}, total_value={self.total_portfolio_value:.2f}")
-        except Exception as e:
-            logger.error(f"Error loading portfolio: {e}", exc_info=True)
+            logger.info(f"Portfolio state updated (API prices): items={len(self.portfolio_items)}, total_value={self.total_portfolio_value:.2f}")
+        except Exception as e: 
+            logger.error(f"Error loading simulated portfolio: {e}", exc_info=True)
             self.portfolio_items = []
             self.total_portfolio_value = 0.0
         finally:
-            if db and db.is_active:
+            if db and db.is_active: 
                 db.close()
-            # logger.info("--- Loading Portfolio with API Prices END ---") # Log reducido
+                logger.info("--- Loading Simulated Portfolio with Real-Time API Prices END ---")
 
-    # Fetcher de historial (igual)
     def _fetch_stock_history_data(self, symbol: str, period: str) -> pd.DataFrame:
         db = SessionLocal()
         df_result = pd.DataFrame(columns=['time', 'price'])
-        try:
+        try: 
             stock = db.query(Stock).filter(Stock.symbol == symbol).first()
-            if not stock:
+            if not stock: 
+                logger.warning(f"Stock symbol '{symbol}' not found in database for history fetch.")
                 return df_result
             end_date = datetime.utcnow()
             start_date = None
             days_map = {"1D": 1, "5D": 5, "1M": 30, "6M": 180, "1A": 365, "5A": 365 * 5}
-            if period in days_map:
+            if period in days_map: 
                 start_date = end_date - timedelta(days=days_map[period])
-            elif period == "ENG":
+            elif period == "ENG": 
                 start_date = datetime(end_date.year, 1, 1)
-            elif period == "MAX":
+            elif period == "MAX": 
                 start_date = None
-            else:
-                start_date = end_date - timedelta(days=1) # Default to 1D
-
+            else: 
+                logger.warning(f"Unrecognized period '{period}', defaulting to 1D.")
+                start_date = end_date - timedelta(days=1)
             query = db.query(StockPriceHistory.timestamp, StockPriceHistory.price).filter(StockPriceHistory.stock_id == stock.id)
-            if start_date:
+            if start_date: 
                 query = query.filter(StockPriceHistory.timestamp >= start_date)
             query = query.order_by(StockPriceHistory.timestamp.asc())
             df = pd.read_sql(query.statement, db.bind)
@@ -537,167 +626,184 @@ class AuthState(rx.State):
                 df['time'] = pd.to_datetime(df['time'], errors='coerce')
                 df = df.dropna(subset=['price', 'time'])
                 df_result = df
-        except Exception as e:
-            logger.error(f"Err _fetch {symbol} {period}: {e}")
+        except Exception as e: 
+            logger.error(f"Error fetching stock history for {symbol} ({period}): {e}", exc_info=True)
         finally:
-            if db and db.is_active:
+            if db and db.is_active: 
                 db.close()
         return df_result
 
-    # --- Lógica Gráfico Portfolio ---
-    # QUITAR @rx.background -> Usaremos asyncio.create_task
+    # --- Lógica Gráfico Portfolio (SIN @rx.background) ---
     async def _update_portfolio_chart_data(self):
-        """Calcula valor total portfolio para gráfico."""
-        async with self:
-            self.is_loading_portfolio_chart = True # Indicar carga
-        logger.info(f"--- Updating Portfolio Chart Data START (Period: {self.selected_period}) ---")
-        if not self.portfolio_items:
-            async with self:
-                self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
-                self.is_loading_portfolio_chart = False
+        self.is_loading_portfolio_chart = True
+        logger.info(f"--- Updating Portfolio Chart Data START (Sync Mode - Period: {self.selected_period}) ---")
+        if not self.portfolio_items: 
+            self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
+            self.is_loading_portfolio_chart = False
             logger.warning("No portfolio items for chart.")
             return
 
         db_session = SessionLocal()
-        try:
+        try: 
             db_symbols = {s.symbol for s in db_session.query(Stock.symbol).all()}
-        finally:
+        finally: 
             db_session.close()
-
+        
         symbols_to_chart = [item.symbol for item in self.portfolio_items if item.symbol in db_symbols]
         quantities = {item.symbol: item.quantity for item in self.portfolio_items if item.symbol in symbols_to_chart}
         period = self.selected_period
 
-        if not symbols_to_chart:
-            logger.warning("No symbols with history found for chart.")
-            async with self:
-                self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
-                self.is_loading_portfolio_chart = False
+        if not symbols_to_chart: 
+            logger.warning("No symbols with history found.")
+            self.portfolio_chart_data = pd.DataFrame(columns=['time','total_value'])
+            self.is_loading_portfolio_chart = False
             return
 
         all_history_dict = {}
-        # logger.info(f"Fetching history for portfolio chart: {symbols_to_chart}") # Log reducido
-        loop = asyncio.get_running_loop()
-        fetch_tasks = [loop.run_in_executor(None, self._fetch_stock_history_data, symbol, period) for symbol in symbols_to_chart]
-        try:
-            results = await asyncio.gather(*fetch_tasks)
-        except Exception as e:
-            logger.error(f"Error fetching histories: {e}")
-            results = []
-
-        for symbol, df in zip(symbols_to_chart, results):
-            if isinstance(df, pd.DataFrame) and not df.empty:
+        for symbol in symbols_to_chart:
+            df = self._fetch_stock_history_data(symbol, period)
+            if isinstance(df, pd.DataFrame) and not df.empty: 
                 df['time'] = pd.to_datetime(df['time'], errors='coerce')
                 df = df.set_index('time')
                 all_history_dict[symbol] = df['price'].dropna()
-            # else: logger.warning(f"No history for {symbol} ({period})") # Log reducido
 
-        if not all_history_dict:
+        if not all_history_dict: 
             logger.warning("No history fetched.")
-            async with self:
-                self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
-                self.is_loading_portfolio_chart = False
+            self.portfolio_chart_data = pd.DataFrame(columns=['time','total_value'])
+            self.is_loading_portfolio_chart = False
             return
 
-        try:
+        try: 
             combined_df = pd.DataFrame(all_history_dict)
             combined_df = combined_df.interpolate(method='time', limit_area='inside').bfill(limit=5).ffill(limit=5)
             combined_df = combined_df.dropna(how='all')
-            if combined_df.empty:
+            
+            if combined_df.empty: 
                 logger.warning("Combined history empty.")
-                async with self:
-                    self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
-                    self.is_loading_portfolio_chart = False
+                self.portfolio_chart_data = pd.DataFrame(columns=['time','total_value'])
+                self.is_loading_portfolio_chart = False
                 return
-            total_value_series = pd.Series(0.0, index=combined_df.index)
+            
+            total_value_series = pd.Series(0.0, index=combined_df.index, dtype=float)
             for symbol, quantity in quantities.items():
-                if symbol in combined_df.columns:
+                if symbol in combined_df.columns: 
                     total_value_series += combined_df[symbol].fillna(0.0) * quantity
+            
             final_df = pd.DataFrame({'total_value': total_value_series}).reset_index()
-            # Actualizar estado DENTRO del async with
-            async with self:
-                self.portfolio_chart_data = final_df
-                # logger.info(f"Portfolio chart data calculated. Rows: {len(self.portfolio_chart_data)}")
-        except Exception as e:
-            logger.error(f"Error processing history: {e}")
-            async with self:
-                self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
-        finally:
-            async with self:
-                self.is_loading_portfolio_chart = False # Indicar fin de carga
-        # logger.info("--- Updating Portfolio Chart Data END ---") # Log reducido
+            self.portfolio_chart_data = final_df
+        except Exception as e: 
+            logger.error(f"Error processing portfolio history: {e}", exc_info=True)
+            self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
+        finally: 
+            self.is_loading_portfolio_chart = False
+        logger.info("--- Updating Portfolio Chart Data END (Sync Mode) ---")
 
-    # --- dashboard_on_mount (Llama a PNL, Portfolio y Gráfico Portfolio) ---
+    # --- Lógica Carga Transacciones Recientes (SIN @rx.background) ---
+    async def _load_recent_transactions(self):
+        logger.info("--- Loading Recent Transactions START ---")
+        if not self.user_id: 
+            logger.warning("No user ID for transactions.")
+            self.recent_transactions = []
+            return
+        
+        db = SessionLocal()
+        trans_list = []
+        try:
+            transactions_db = db.query(Transaction).filter(Transaction.user_id == self.user_id).order_by(Transaction.timestamp.desc()).limit(5).all()
+            if transactions_db:
+                formatted_list = []
+                for t in transactions_db:
+                    stock_obj = db.query(Stock).filter(Stock.id == t.stock_id).first()
+                    stock_symbol = stock_obj.symbol if stock_obj else "??"
+                    formatted_list.append(
+                        TransactionDisplayItem(
+                            timestamp=t.timestamp.strftime("%d/%m/%y %H:%M"),
+                            symbol=stock_symbol,
+                            quantity=t.quantity,
+                            price=float(t.price),
+                            type="Compra" if t.quantity > 0 else "Venta"
+                        )
+                    )
+                trans_list = formatted_list
+                logger.info(f"Loaded {len(trans_list)} recent transactions from DB for user {self.user_id}.")
+            else: 
+                logger.info(f"No transactions found in DB for user {self.user_id}. Using hardcoded examples.")
+                trans_list = [
+                    TransactionDisplayItem(timestamp="04/05/25 10:30", symbol="AAPL", quantity=10, price=210.50, type="Compra"),
+                    TransactionDisplayItem(timestamp="03/05/25 15:01", symbol="MSFT", quantity=-5, price=405.10, type="Venta"),
+                    TransactionDisplayItem(timestamp="02/05/25 09:15", symbol="GOOGL", quantity=20, price=155.80, type="Compra"),
+                ]
+            self.recent_transactions = trans_list
+        except Exception as e: 
+            logger.error(f"Error loading recent transactions: {e}", exc_info=True)
+            self.recent_transactions = []
+        finally:
+            if db and db.is_active: 
+                db.close()
+        logger.info("--- Loading Recent Transactions END ---")
+
+    # --- dashboard_on_mount (Llama a TODO síncrono/yield await) ---
     async def dashboard_on_mount(self):
         logger.info("--- Dashboard on_mount START ---")
         try:
-            # Calcular PNL para las cards (ej. AAPL)
             pnl_symbol = "AAPL"
-            quantity = 10 # Usar 10 acciones de AAPL como ejemplo para PNL
+            quantity = 10
             if quantity > 0:
                 daily_pnl_val, daily_df = self._calculate_stock_pnl(pnl_symbol, "1D", quantity)
                 self.daily_pnl = daily_pnl_val if daily_pnl_val is not None else 0.0
                 self.daily_pnl_chart_data = daily_df
-
+                
                 monthly_pnl_val, monthly_df = self._calculate_stock_pnl(pnl_symbol, "1M", quantity)
                 self.monthly_pnl = monthly_pnl_val if monthly_pnl_val is not None else 0.0
                 self.monthly_pnl_chart_data = monthly_df
-
+                
                 yearly_pnl_val, yearly_df = self._calculate_stock_pnl(pnl_symbol, "1A", quantity)
                 self.yearly_pnl = yearly_pnl_val if yearly_pnl_val is not None else 0.0
                 self.yearly_pnl_chart_data = yearly_df
-            else:
+            else: 
                 self.daily_pnl, self.monthly_pnl, self.yearly_pnl = 0.0, 0.0, 0.0
-                empty_df = pd.DataFrame(columns=['time', 'price'])
+                empty_df = pd.DataFrame(columns=['time','price'])
                 self.daily_pnl_chart_data = empty_df
                 self.monthly_pnl_chart_data = empty_df
                 self.yearly_pnl_chart_data = empty_df
-
-            # Cargar portfolio simulado (con precios reales API)
-            # Esta función es síncrona, así que se ejecuta y termina aquí
+            
             self._load_simulated_portfolio_with_api_prices()
-
-            # Lanzar cálculo del gráfico del portfolio en background
-            # Usamos asyncio.create_task para no esperar aquí
-            asyncio.create_task(self._update_portfolio_chart_data())
-
-        except Exception as e:
+            yield self._update_portfolio_chart_data()
+            yield self._load_recent_transactions()
+        except Exception as e: 
             logger.error(f"Error on_mount: {e}", exc_info=True)
         logger.info("--- Dashboard on_mount END ---")
 
-    # --- set_period (Ahora actualiza gráfico portfolio) ---
+    # --- set_period (Actualiza gráfico portfolio - SIN background) ---
     @rx.event
-    async def set_period(self, period: str): # Debe ser async
-        """Updates selected period and triggers portfolio chart update."""
+    async def set_period(self, period: str):
         self.selected_period = period
         self.portfolio_chart_hover_info = None
-        # Lanzar la actualización en background
-        asyncio.create_task(self._update_portfolio_chart_data())
-        logger.info(f"Period changed to {period}. Portfolio chart update task created.")
-        # No necesitamos devolver nada
+        logger.info(f"Period changed to {period}. Triggering portfolio chart update.")
+        await self._update_portfolio_chart_data()
 
     # --- Variables Computadas Gráfico Portfolio ---
     @rx.var
-    def portfolio_change_info(self) -> Dict[str, Any]: # Renombrado
+    def portfolio_change_info(self) -> Dict[str, Any]:
         df = self.portfolio_chart_data
-        default = {"last_price": 0.0, "change": 0.0, "percent_change": 0.0, "is_positive": True}
+        default = {"last_price": 0.0, "change": 0.0, "percent_change": 0.0, "is_positive": None}
         if not isinstance(df, pd.DataFrame) or df.empty or 'total_value' not in df.columns:
             return default
         prices = df['total_value'].dropna()
         if len(prices) < 2:
-            last_price = float(prices.iloc[-1]) if len(prices) == 1 else 0.0
-            return {"last_price": last_price, "change": 0.0, "percent_change": 0.0, "is_positive": True}
+            return default if len(prices) == 0 else {"last_price": float(prices.iloc[-1]), "change": 0.0, "percent_change": 0.0, "is_positive": None}
         try:
             last_f = float(prices.iloc[-1])
             first_f = float(prices.iloc[0])
-        except Exception:
+        except (ValueError, TypeError, IndexError):
             return default
         change_f = last_f - first_f
         percent_f = (change_f / first_f * 100) if first_f != 0 else 0.0
-        return {"last_price": last_f, "change": change_f, "percent_change": percent_f, "is_positive": change_f >= 0}
+        is_positive = change_f > 0 if change_f != 0 else None
+        return {"last_price": last_f, "change": change_f, "percent_change": percent_f, "is_positive": is_positive}
 
     @rx.var
-    def is_portfolio_value_change_positive(self) -> bool:
+    def is_portfolio_value_change_positive(self) -> bool | None:
         return self.portfolio_change_info["is_positive"]
 
     @rx.var
@@ -710,99 +816,474 @@ class AuthState(rx.State):
 
     @rx.var
     def portfolio_chart_color(self) -> str:
-        return "#22c55e" if self.is_portfolio_value_change_positive else "#ef4444"
+        is_positive = self.is_portfolio_value_change_positive
+        return "#22c55e" if is_positive is True else "#ef4444" if is_positive is False else "#6b7280"
 
     @rx.var
     def portfolio_chart_area_color(self) -> str:
-        rgb_color = '34,197,94' if self.is_portfolio_value_change_positive else '239,68,68'
-        return f"rgba({rgb_color},0.2)"
+        is_positive = self.is_portfolio_value_change_positive
+        return f"rgba({'34,197,94' if is_positive is True else '239,68,68' if is_positive is False else '107,114,128'},0.2)"
 
     @rx.var
-    def portfolio_display_value(self) -> float: # ... (igual) ...
+    def portfolio_display_value(self) -> float:
         last_value = float(self.portfolio_change_info.get("last_price", 0.0))
-        hover_y = self.portfolio_chart_hover_info.get("y") if self.portfolio_chart_hover_info else None
-        y = hover_y[0] if isinstance(hover_y, list) and hover_y else hover_y
-        try:
-            if isinstance(y, (int, float, str, Decimal)) and y is not None:
-                return float(y)
-            else:
-                return last_value
-        except (ValueError, TypeError):
-            return last_value
+        hover_info = self.portfolio_chart_hover_info
+        if hover_info and "y" in hover_info:
+            hover_y_data = hover_info["y"]
+            y_to_convert = hover_y_data[0] if isinstance(hover_y_data, list) and hover_y_data else hover_y_data
+            if y_to_convert is not None:
+                try:
+                    return float(y_to_convert)
+                except (ValueError, TypeError):
+                    pass
+        return last_value
 
     @rx.var
-    def portfolio_display_time(self) -> str: # ... (igual) ...
-        if self.portfolio_chart_hover_info and "x" in self.portfolio_chart_hover_info:
-            x_data = self.portfolio_chart_hover_info.get("x")
-            x = x_data[0] if isinstance(x_data, list) and x_data else x_data
-            try:
-                time_obj = pd.to_datetime(x)
-                return time_obj.strftime('%Y-%m-%d')
-            except Exception:
-                return str(x) if x else "--"
+    def portfolio_display_time(self) -> str:
+        hover_info = self.portfolio_chart_hover_info
+        if hover_info and "x" in hover_info:
+            x_data = hover_info["x"]
+            x_value = x_data[0] if isinstance(x_data, list) and x_data else x_data
+            if x_value is not None:
+                try:
+                    if isinstance(x_value, (str, datetime, pd.Timestamp)):
+                        return pd.to_datetime(x_value).strftime('%Y-%m-%d')
+                    return str(x_value)
+                except Exception as e:
+                    logger.warning(f"Error formatting portfolio display time for x_value '{x_value}': {e}")
+                    return str(x_value) if x_value else "--"
         return "--"
 
     @rx.var
-    def main_portfolio_chart_figure(self) -> go.Figure: # ... (igual, usa portfolio_chart_data y flag loading) ...
+    def main_portfolio_chart_figure(self) -> go.Figure:
+        loading_fig = go.Figure().update_layout(height=300, annotations=[dict(text="Calculando gráfico portfolio...", showarrow=False)], paper_bgcolor='white', plot_bgcolor='white', xaxis=dict(visible=False), yaxis=dict(visible=False))
+        error_fig = go.Figure().update_layout(height=300, annotations=[dict(text="Sin datos para gráfico.", showarrow=False)], paper_bgcolor='white', plot_bgcolor='white', xaxis=dict(visible=False), yaxis=dict(visible=False))
+
+        if self.is_loading_portfolio_chart: return loading_fig
         df = self.portfolio_chart_data
-        loading_fig = go.Figure().update_layout(
-            height=300, annotations=[dict(text="Calculando gráfico portfolio...", showarrow=False)],
-            paper_bgcolor='white', plot_bgcolor='white', xaxis=dict(visible=False), yaxis=dict(visible=False)
-        )
-        error_fig = go.Figure().update_layout(
-            height=300, annotations=[dict(text="Sin datos para gráfico.", showarrow=False)],
-            paper_bgcolor='white', plot_bgcolor='white', xaxis=dict(visible=False), yaxis=dict(visible=False)
-        )
-        if self.is_loading_portfolio_chart:
-            return loading_fig
-        if not isinstance(df, pd.DataFrame) or df.empty or 'total_value' not in df.columns or 'time' not in df.columns:
-            return error_fig
+        if not isinstance(df, pd.DataFrame) or df.empty or 'total_value' not in df.columns or 'time' not in df.columns: return error_fig
+
         try:
             df_chart = df.copy()
             df_chart['time'] = pd.to_datetime(df_chart['time'], errors='coerce')
             df_chart['total_value'] = pd.to_numeric(df_chart['total_value'], errors='coerce')
             df_chart = df_chart.dropna(subset=['time', 'total_value'])
-            if df_chart.empty or len(df_chart) < 2:
+            if df_chart.empty or len(df_chart) < 2: return error_fig
+
+            fig=go.Figure()
+            fig.add_trace(go.Scatter(x=df_chart['time'],y=df_chart['total_value'],mode='lines',line=dict(width=0),fill='tozeroy',fillcolor=self.portfolio_chart_area_color,hoverinfo='skip'))
+            fig.add_trace(go.Scatter(x=df_chart['time'],y=df_chart['total_value'],mode='lines',line=dict(color=self.portfolio_chart_color,width=2.5,shape='spline'),name='Valor Total',hovertemplate='<b>Valor:</b> $%{y:,.2f}<br><b>Fecha:</b> %{x|%Y-%m-%d}<extra></extra>'))
+            min_v,max_v=df_chart['total_value'].min(),df_chart['total_value'].max(); padding=(max_v-min_v)*0.1 if (max_v!=min_v) else abs(min_v)*0.1 or 1000; range_min,range_max=min_v-padding,max_v+padding
+            fig.update_layout(height=300,margin=dict(l=50, r=10, t=10, b=30),paper_bgcolor='white',plot_bgcolor='white',xaxis=dict(showgrid=False,zeroline=False,tickmode='auto',nticks=6,showline=True,linewidth=1,linecolor='lightgrey',tickangle=-30),yaxis=dict(title=None,showgrid=True,gridcolor='rgba(230,230,230,0.5)',zeroline=False,showline=False,side='left',tickformat="$,.0f",range=[range_min,range_max]),hovermode='x unified',showlegend=False); return fig
+        except Exception as e: logger.error(f"Err portfolio chart figure: {e}"); return error_fig
+
+    # --- Event Handlers Gráfico Portfolio ---
+    def portfolio_chart_handle_hover(self, event_data):
+        new_hover_info = None; points = None
+        if event_data and isinstance(event_data, list) and event_data[0] and isinstance(event_data[0], dict): points = event_data[0].get('points')
+        if points and isinstance(points, list) and points[0] and isinstance(points[0], dict): new_hover_info = points[0]
+        if self.portfolio_chart_hover_info != new_hover_info: self.portfolio_chart_hover_info = new_hover_info
+
+    def portfolio_chart_handle_unhover(self, _):
+        if self.portfolio_chart_hover_info is not None: self.portfolio_chart_hover_info = None
+
+    def portfolio_toggle_change_display(self):
+        self.portfolio_show_absolute_change = not self.portfolio_show_absolute_change
+
+    # --- Métodos para Buscador ---
+    def set_search_query(self, query: str):
+        self.search_query = query
+        self.search_error = ""
+
+
+# --- Métodos para Página de Detalles de Acción ---
+
+    @rx.event
+    async def set_current_stock_period(self, period: str):
+        """
+        Establece el período para el gráfico de detalles de la acción y actualiza los datos del gráfico.
+        """
+        self.current_stock_selected_period = period
+        self.stock_detail_chart_hover_info = None # Resetea la información de hover
+        logger.info(f"Stock detail period changed to {period}. Triggering chart update for {self.viewing_stock_symbol}.")
+        await self._update_current_stock_chart_data_internal()
+
+    @rx.event
+    async def load_stock_page_data(self, symbol: Optional[str] = None):
+        if not symbol:
+            route_symbol = self.router.page.params.get("symbol")
+            if not route_symbol:
+                logger.warning("load_stock_page_data: No symbol provided.")
+                self.current_stock_info = {"error": "Símbolo no proporcionado."}
+                return
+            symbol = route_symbol
+        self.viewing_stock_symbol = symbol.upper()
+        self.is_loading_current_stock_details = True
+        self.current_stock_info = {}
+        self.current_stock_metrics = {}
+        self.current_stock_history = pd.DataFrame(columns=['time', 'price'])
+        logger.info(f"--- Loading stock page data for: {self.viewing_stock_symbol} ---")
+        try:
+            ticker = await asyncio.to_thread(yf.Ticker, self.viewing_stock_symbol)
+            info = await asyncio.to_thread(getattr, ticker, 'info')
+            if not info or (info.get("regularMarketPrice") is None and info.get("currentPrice") is None and info.get("previousClose") is None):
+                logger.warning(f"No info for {self.viewing_stock_symbol}.")
+                self.current_stock_info = {"error": f"No info for {self.viewing_stock_symbol}."}
+                self.is_loading_current_stock_details = False
+                return
+            self.current_stock_info = {
+                "symbol": info.get("symbol", self.viewing_stock_symbol),
+                "longName": info.get("longName", info.get("shortName", self.viewing_stock_symbol)),
+                "shortName": info.get("shortName", self.viewing_stock_symbol),
+                "currentPrice": info.get("currentPrice", info.get("regularMarketPrice", info.get("previousClose"))),
+                "previousClose": info.get("previousClose"),
+                "open": info.get("open"),
+                "dayHigh": info.get("dayHigh"),
+                "dayLow": info.get("dayLow"),
+                "volume": info.get("volume"),
+                "marketCap": info.get("marketCap"),
+                "fiftyTwoWeekHigh": info.get("fiftyTwoWeekHigh"),
+                "fiftyTwoWeekLow": info.get("fiftyTwoWeekLow"),
+                "averageVolume": info.get("averageVolume"),
+                "averageVolume10days": info.get("averageVolume10days"),
+                "beta": info.get("beta"),
+                "trailingPE": info.get("trailingPE"),
+                "forwardPE": info.get("forwardPE"),
+                "dividendYield": info.get("dividendYield"),
+                "logo_url": info.get("logo_url", "/default_logo.png"),
+                "exchangeName": info.get("exchange", "N/A"),
+                "currency": info.get("currency", "USD"),
+                "currencySymbol": info.get("currencySymbol", "$"),
+                "longBusinessSummary": info.get("longBusinessSummary", "No disponible."),
+                "ceo": info.get("companyOfficers")[0].get("name", "N/A") if info.get("companyOfficers") and len(info.get("companyOfficers")) > 0 else "N/A",
+            }
+            market_cap = info.get('marketCap')
+            avg_volume = info.get('averageVolume')
+            currency_symbol = self.current_stock_info.get("currencySymbol", '$')
+            self.current_stock_metrics = {
+                "Tancament anterior": f"{currency_symbol}{info.get('previousClose', 'N/A'):,.2f}" if info.get('previousClose') else "N/A",
+                "Interval de preus d'avui": f"{currency_symbol}{info.get('dayLow', 'N/A'):,.2f} - {currency_symbol}{info.get('dayHigh', 'N/A'):,.2f}" if info.get('dayLow') and info.get('dayHigh') else "N/A",
+                "Interval anual": f"{currency_symbol}{info.get('fiftyTwoWeekLow', 'N/A'):,.2f} - {currency_symbol}{info.get('fiftyTwoWeekHigh', 'N/A'):,.2f}" if info.get('fiftyTwoWeekLow') and info.get('fiftyTwoWeekHigh') else "N/A",
+                "Capitalització borsària": f"{currency_symbol}{market_cap / 1_000_000_000:.2f} B" if market_cap else "N/A",
+                "Volum mitjà": f"{avg_volume / 1_000_000:.2f} M" if avg_volume else "N/A",
+                "Ràtio PER": f"{info.get('trailingPE', 'N/A'):,.2f}" if info.get('trailingPE') else "N/A",
+                "Rendibilitat per dividend": f"{info.get('dividendYield', 0) * 100:.2f}%" if info.get('dividendYield') else "-",
+                "Borsa principal": info.get("exchangeName", "N/A"),
+            }
+            await self._update_current_stock_chart_data_internal()
+        except Exception as e:
+            logger.error(f"Error loading stock details for {self.viewing_stock_symbol}: {e}")
+            self.current_stock_info = {"error": f"Error loading data for {self.viewing_stock_symbol}."}
+        finally:
+            self.is_loading_current_stock_details = False
+
+    async def _update_current_stock_chart_data_internal(self):
+        if not self.viewing_stock_symbol:
+            self.current_stock_history = pd.DataFrame(columns=['time', 'price'])
+            return
+        df = await asyncio.to_thread(
+            self._fetch_stock_history_data_detail,
+            self.viewing_stock_symbol,
+            self.current_stock_selected_period
+        )
+        if not df.empty:
+            self.current_stock_history = df
+        else:
+            logger.warning(
+                f"Could not reload history for {self.viewing_stock_symbol} period {self.current_stock_selected_period}"
+            )
+            self.current_stock_history = pd.DataFrame(columns=['time', 'price'])
+
+    def _fetch_stock_history_data_detail(self, symbol: str, period: str) -> pd.DataFrame:
+        logger.info(f"Fetching yfinance history for {symbol}, period {period}")
+        try:
+            ticker = yf.Ticker(symbol)
+            yf_period_map = {
+                "1D": "1d", "5D": "5d", "1M": "1mo", "6M": "6mo",
+                "ENG": "ytd", "1A": "1y", "5A": "5y", "MAX": "max"
+            }
+            yf_period = yf_period_map.get(period, "1mo")
+            interval = "1d"
+            end_date = datetime.now()
+            start_date = None
+
+            if period == "1D":
+                interval = "1m"
+                start_date = end_date - timedelta(days=1)
+            elif period == "5D":
+                interval = "5m"
+                start_date = end_date - timedelta(days=5)
+            elif period == "1M":
+                interval = "60m"
+                start_date = end_date - timedelta(days=30)
+
+            if start_date:
+                df_hist = ticker.history(start=start_date, end=end_date, interval=interval)
+            else:
+                df_hist = ticker.history(period=yf_period, interval=interval)
+
+            if not df_hist.empty and 'Close' in df_hist.columns:
+                df_result = df_hist[['Close']].copy()
+                df_result.rename(columns={'Close': 'price'}, inplace=True)
+                df_result.index.name = 'time'
+                df_result = df_result.reset_index()
+                if df_result['time'].dt.tz is None:
+                    df_result['time'] = df_result['time'].dt.tz_localize('UTC')
+                else:
+                    df_result['time'] = df_result['time'].dt.tz_convert('UTC')
+                return df_result
+            else:
+                logger.warning(
+                    f"yfinance history fetch returned empty for {symbol} ({period}, {interval})."
+                )
+                return pd.DataFrame(columns=['time', 'price'])
+        except Exception as e:
+            logger.error(f"Error fetching yfinance history for {symbol} ({period}): {e}")
+            return pd.DataFrame(columns=['time', 'price'])
+
+    @rx.event
+    async def search_stock(self):
+        if not self.search_query:
+            self.search_error = "Introduce un símbolo."
+            self.search_result = SearchResultItem()
+            return
+        self.is_searching = True
+        self.search_error = ""
+        self.search_result = SearchResultItem()
+        symbol = self.search_query.strip().upper()
+        try:
+            loop = asyncio.get_running_loop()
+            ticker_info = await loop.run_in_executor(None, lambda s: yf.Ticker(s).info, symbol)
+            if not ticker_info or (ticker_info.get("regularMarketPrice") is None and 
+                                 ticker_info.get("currentPrice") is None):
+                self.search_error = f"No info para '{symbol}'."
+                self.is_searching = False
+                return
+            price = ticker_info.get("currentPrice", 
+                                  ticker_info.get("regularMarketPrice", 
+                                  ticker_info.get("previousClose", 0.0)))
+            name = ticker_info.get("longName", ticker_info.get("shortName", symbol))
+            logo = ticker_info.get("logo_url", "/default_logo.png")
+            self.search_result = SearchResultItem(
+                Symbol=symbol,
+                Name=name,
+                Current_Price=f"{float(price):,.2f}",
+                Logo=logo
+            )
+        except Exception as e:
+            logger.error(f"Error searching stock {symbol}: {e}")
+            self.search_error = f"Error al buscar '{symbol}'."
+            self.search_result = SearchResultItem(Symbol=symbol, Name="Error")
+        finally:
+            self.is_searching = False
+
+    @rx.var
+    def stock_detail_chart_change_info(self) -> Dict[str, Any]:
+        df = self.current_stock_history
+        default_info = {
+            "last_price": 0.0, "change": 0.0, "percent_change": 0.0,
+            "is_positive": None, "first_price_time": None, "last_price_time": None
+        }
+        current_price_from_info = self.current_stock_info.get("currentPrice")
+        if current_price_from_info is not None:
+            try:
+                default_info["last_price"] = float(current_price_from_info)
+            except (ValueError, TypeError):
+                pass
+        if not isinstance(df, pd.DataFrame) or df.empty or 'price' not in df.columns or 'time' not in df.columns:
+            return default_info
+        prices = df['price'].dropna()
+        times = df['time'].dropna()
+        if prices.empty or times.empty or len(prices) != len(times):
+            return default_info
+        if len(prices) < 1:
+            return default_info
+        last_f = float(prices.iloc[-1])
+        last_t = pd.to_datetime(times.iloc[-1])
+        default_info["last_price"] = last_f
+        default_info["last_price_time"] = last_t
+        if len(prices) < 2:
+            return default_info
+        first_f = float(prices.iloc[0])
+        first_t = pd.to_datetime(times.iloc[0])
+        change_f = last_f - first_f
+        percent_f = (change_f / first_f * 100) if first_f != 0 else 0.0
+        is_positive = change_f > 0 if change_f != 0 else None
+        return {
+            "last_price": last_f, "change": change_f, "percent_change": percent_f,
+            "is_positive": is_positive, "first_price_time": first_t, "last_price_time": last_t
+        }
+
+    @rx.var
+    def stock_detail_display_price(self) -> str:
+        hover_info = self.stock_detail_chart_hover_info
+        change_info = self.stock_detail_chart_change_info
+        price_to_display = change_info.get("last_price", 0.0)
+        currency_symbol = self.current_stock_info.get("currencySymbol", "$")
+        if hover_info and "y" in hover_info:
+            hover_y_data = hover_info["y"]
+            y_to_convert = hover_y_data[0] if isinstance(hover_y_data, list) and hover_y_data else hover_y_data
+            if y_to_convert is not None:
+                try:
+                    price_to_display = float(y_to_convert)
+                except (ValueError, TypeError):
+                    pass
+        return f"{currency_symbol}{price_to_display:,.2f}"
+
+    @rx.var
+    def stock_detail_display_time_or_change(self) -> str:
+        hover_info = self.stock_detail_chart_hover_info
+        change_info = self.stock_detail_chart_change_info
+        if hover_info and "x" in hover_info:
+            x_data = hover_info["x"]
+            x_value = x_data[0] if isinstance(x_data, list) and x_data else x_data
+            if x_value is not None:
+                try:
+                    dt_obj = pd.to_datetime(x_value)
+                    if self.current_stock_selected_period in ["1D", "5D"] or (
+                        change_info.get("last_price_time") and change_info.get("first_price_time") and
+                        isinstance(change_info["last_price_time"], pd.Timestamp) and
+                        isinstance(change_info["first_price_time"], pd.Timestamp) and
+                        (change_info["last_price_time"] - change_info["first_price_time"]).days < 2
+                    ):
+                        return dt_obj.strftime('%d %b, %H:%M')
+                    return dt_obj.strftime('%d %b %Y')
+                except Exception:
+                    return str(x_value) if x_value else "--"
+        change_val = change_info.get("change", 0.0)
+        percent_change_val = change_info.get("percent_change", 0.0)
+        currency_symbol = self.current_stock_info.get("currencySymbol", "$")
+        period_map_display = {
+            "1D": "avui", "5D": "5 dies", "1M": "1 mes", "6M": "6 mesos",
+            "ENG": "aquest any", "1A": "1 any", "5A": "5 anys", "MAX": "màxim"
+        }
+        period_display_name = period_map_display.get(self.current_stock_selected_period, self.current_stock_selected_period)
+        return f"{currency_symbol}{change_val:+.2f} ({percent_change_val:+.2f}%) {period_display_name}"
+
+    @rx.var
+    def stock_detail_change_color(self) -> str:
+        is_positive = self.stock_detail_chart_change_info.get("is_positive")
+        if self.stock_detail_chart_hover_info and "x" in self.stock_detail_chart_hover_info:
+            return "var(--gray-11)"
+        if is_positive is True:
+            return "var(--green-10)"
+        if is_positive is False:
+            return "var(--red-10)"
+        return "var(--gray-11)"
+
+    @rx.var
+    def stock_detail_chart_figure(self) -> go.Figure:
+        loading_fig = go.Figure().update_layout(
+            height=350,
+            annotations=[dict(text="Carregant gràfic...", showarrow=False)],
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+        error_fig = go.Figure().update_layout(
+            height=350,
+            annotations=[dict(text="Sense dades per al gràfic.", showarrow=False)],
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+        if self.is_loading_current_stock_details and self.current_stock_history.empty:
+            return loading_fig
+        df = self.current_stock_history
+        if not isinstance(df, pd.DataFrame) or df.empty or 'price' not in df.columns or 'time' not in df.columns:
+            logger.warning("Stock detail chart: DataFrame invalid.")
+            return error_fig
+        try:
+            df_chart = df.copy()
+            df_chart['time'] = pd.to_datetime(df_chart['time'], errors='coerce')
+            df_chart['price'] = pd.to_numeric(df_chart['price'], errors='coerce')
+            df_chart = df_chart.dropna(subset=['time', 'price'])
+            if df_chart.empty:
+                logger.warning("Stock detail chart: No data points after cleaning.")
                 return error_fig
             fig = go.Figure()
+            change_info = self.stock_detail_chart_change_info
+            is_positive = change_info.get("is_positive")
+            line_color = "var(--gray-11)"
+            area_color = "rgba(128, 128, 128, 0.1)"
+            if is_positive is True:
+                line_color = "var(--green-9)"
+                area_color = "rgba(76, 175, 80, 0.1)"
+            elif is_positive is False:
+                line_color = "var(--red-9)"
+                area_color = "rgba(244, 67, 54, 0.1)"
             fig.add_trace(go.Scatter(
-                x=df_chart['time'], y=df_chart['total_value'], mode='lines',
-                line=dict(width=0), fill='tozeroy', fillcolor=self.portfolio_chart_area_color, hoverinfo='skip'
+                x=df_chart['time'], y=df_chart['price'], mode='lines',
+                line=dict(width=0), fill='tozeroy', fillcolor=area_color, hoverinfo='skip'
             ))
             fig.add_trace(go.Scatter(
-                x=df_chart['time'], y=df_chart['total_value'], mode='lines',
-                line=dict(color=self.portfolio_chart_color, width=2.5, shape='spline'), name='Valor Total',
-                hovertemplate='<b>Valor:</b> $%{y:,.2f}<br><b>Fecha:</b> %{x|%Y-%m-%d}<extra></extra>'
+                x=df_chart['time'], y=df_chart['price'], mode='lines',
+                line=dict(color=line_color, width=2.5, shape='spline'), name='Preu'
             ))
-            min_v, max_v = df_chart['total_value'].min(), df_chart['total_value'].max()
-            padding = (max_v - min_v) * 0.1 if (max_v != min_v) else abs(min_v) * 0.1 or 1000
+            min_v, max_v = df_chart['price'].min(), df_chart['price'].max()
+            padding_percentage = 0.1
+            padding = (max_v - min_v) * padding_percentage if (max_v != min_v) else (abs(min_v) * padding_percentage or 1.0)
             range_min, range_max = min_v - padding, max_v + padding
+            tickformat = '%d %b %Y'
+            dt_hover_format = '%d %b %Y, %H:%M'
+            time_range_days = (df_chart['time'].max() - df_chart['time'].min()).days if len(df_chart['time']) > 1 else 0
+            if time_range_days <= 2:
+                tickformat = '%H:%M'
+                dt_hover_format = '%H:%M (%d %b)'
+            elif time_range_days <= 60:
+                tickformat = '%d %b'
+                dt_hover_format = '%d %b, %H:%M'
             fig.update_layout(
-                height=300, margin=dict(l=50, r=10, t=10, b=30),
-                paper_bgcolor='white', plot_bgcolor='white',
-                xaxis=dict(showgrid=False, zeroline=False, tickmode='auto', nticks=6, showline=True, linewidth=1, linecolor='lightgrey', tickangle=-30),
-                yaxis=dict(title=None, showgrid=True, gridcolor='rgba(230,230,230,0.5)', zeroline=False, showline=False, side='left', tickformat="$,.0f", range=[range_min, range_max]),
-                hovermode='x unified', showlegend=False
+                height=350,
+                margin=dict(l=60, r=20, t=20, b=40),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(
+                    showgrid=False, zeroline=False, tickmode='auto',
+                    nticks=5 if time_range_days > 2 else 8, showline=True,
+                    linewidth=1, linecolor='var(--gray-a5)', tickangle=-30 if time_range_days > 7 else 0,
+                    tickfont=dict(color='var(--gray-11)', size=10), tickformat=tickformat
+                ),
+                yaxis=dict(
+                    title=None, showgrid=True, gridcolor='var(--gray-a3)',
+                    zeroline=False, showline=False, side='left',
+                    tickfont=dict(color='var(--gray-11)', size=10), tickformat=",.2f",
+                    range=[range_min, range_max] if range_min < range_max else None
+                ),
+                hovermode='x unified', showlegend=False, font=dict(color="var(--gray-12)")
+            )
+            fig.update_traces(
+                hovertemplate=f"<b>Preu:</b> %{{y:,.2f}}<br><b>Temps:</b> %{{x|{dt_hover_format}}}<extra></extra>",
+                selector=dict(name="Preu")
             )
             return fig
         except Exception as e:
-            logger.error(f"Err portfolio chart figure: {e}")
+            logger.error(f"Err creating stock detail chart figure for {self.viewing_stock_symbol}: {e}", exc_info=True)
             return error_fig
 
-    # --- Event Handlers Gráfico Portfolio ---
-    def portfolio_chart_handle_hover(self, event_data): # Renombrado
+    def stock_detail_chart_handle_hover(self, event_data):
         new_hover_info = None
-        points = None
         if event_data and isinstance(event_data, list) and event_data[0] and isinstance(event_data[0], dict):
             points = event_data[0].get('points')
-        if points and isinstance(points, list) and points[0] and isinstance(points[0], dict):
-            new_hover_info = points[0]
-        if self.portfolio_chart_hover_info != new_hover_info:
-            self.portfolio_chart_hover_info = new_hover_info
+            if points and isinstance(points, list) and points[0] and isinstance(points[0], dict):
+                new_hover_info = points[0]
+        if self.stock_detail_chart_hover_info != new_hover_info:
+            self.stock_detail_chart_hover_info = new_hover_info
 
-    def portfolio_chart_handle_unhover(self, _): # Renombrado
-        if self.portfolio_chart_hover_info is not None:
-            self.portfolio_chart_hover_info = None
+    def stock_detail_chart_handle_unhover(self, _):
+        if self.stock_detail_chart_hover_info is not None:
+            self.stock_detail_chart_hover_info = None
 
-    def portfolio_toggle_change_display(self): # Renombrado
-        self.portfolio_show_absolute_change = not self.portfolio_show_absolute_change
+class TransactionDisplayItem(rx.Base):
+    timestamp: str
+    symbol: str
+    quantity: int
+    price: float
+    type: str
+
+    @property
+    def formatted_quantity(self) -> str:
+        """Devuelve la cantidad formateada con signo."""
+        return f"{'+' if self.quantity > 0 else ''}{self.quantity}"

@@ -1,96 +1,186 @@
 import reflex as rx
 from ..components.layout import layout
+from ..state.search_state import SearchState
 
 def buscador_page() -> rx.Component:
-    """Placeholder page for Buscador."""
     return layout(
         rx.vstack(
-            # Title
             rx.heading(
                 "Buscador",
-                size="7",  # Adjust the font size of the title
-                margin_y="50",  # Add vertical margin to move the title down
-                align_self="flex-start",  # Align the title to the far left
-                margin_left="50px",  # Add left margin to move the title slightly right
-                margin_top="30px",  # Add top margin to move the title down
+                size="6",
+                margin_y="50",
+                align_self="flex-start",
+                margin_left="30px",
+                margin_top="20px",
             ),
-            # Centered Text
-            rx.center(
+            # Centered intro texts
+            rx.box(
                 rx.vstack(
-                    # First Line: "Encuentra Tu"
                     rx.text(
                         "Encuentra Tu",
-                        size="8",  # Adjust the font size of the title
-                        font_weight="normal",  # Normal weight for this line
-                        margin_left="50px",  # Add left margin to move the title slightly right
-                        margin_top="20px",  # Add top margin to move the title down
+                        size="8",
+                        font_weight="normal",
+                        text_align="center",
+                        width="100%",
+                        margin_top="20px",
                     ),
-                    # Second Line: "Mejor Opción Aqui"
                     rx.text(
                         "Mejor Opción Aqui",
-                        size="8",  # Adjust the font size of the title
-                        font_weight="bold",  # Bold for emphasis
-                        color="royalblue",  # Blue color for "Mejor Opción"
-                        margin_left="50px",  # Add left margin to move the title slightly right
+                        size="8",
+                        font_weight="bold",
+                        color="royalblue",
+                        text_align="center",
+                        width="100%",
+                        margin_top="0px",
                     ),
-                    
-                    rx.box(
-                        rx.text(
-                            "En esta herramienta de búsqueda, puede explorar una amplia gama de acciones globales de varios mercados. Encuentre datos en tiempo real sobre las empresas y tome decisiones de inversión informadas con facilidad.",
-                            font_size="5",  # Smaller font size for the definition
-                            font_weight="normal",  # Normal weight for the text
-                            color="gray",  # Gray color for the text
-                            line_height="1.5",  # Adjust line height for better readability
-                            margin_top="10px",  # Add top margin to move the title down
-                        ),
-                        width="60%",  # Adjust the width of the box
-                        padding="20",  # Add padding inside the box
-                        margin_top="30",  # Add top margin to separate it from the centered text
-                        border_radius="md",  # Optional: Add border radius to the box
-                        box_shadow="sm",  # Optional: Add a subtle shadow to the box
-                        background="white",  # Background color of the box
-                        margin_left="50px",  # Add left margin to move the title slightly right
-                    ),
+                    align_items="center",
+                    width="100%",
                 ),
-                width="100%",  # Ensure the content spans the full width
+                width="100%",
+                display="flex",
+                justify_content="center",
             ),
-            # Search Bar
+            rx.box(
+                rx.text(
+                    "En esta herramienta de búsqueda, puede explorar una amplia gama de acciones globales de varios mercados. Encuentre datos en tiempo real sobre las empresas y tome decisiones de inversión informadas con facilidad.",
+                    font_size="10",
+                    font_weight="normal",
+                    color="gray",
+                    line_height="1.5",
+                    text_align="center",
+                    width="650px",
+                    margin_top="10px",
+                    align_self="center",
+                ),
+                width="100%",
+                display="flex",
+                justify_content="center",
+            ),
             rx.box(
                 rx.hstack(
-                    # Search Icon
-                    rx.icon(tag="search", color="royalblue", box_size="6"),  # Add the 'tag' argument
-                    # Input Field
+                    rx.icon(tag="search", color="royalblue", box_size="6"),
+                    rx.box(width="1px", height="28px", background="#e0e0e0", margin_x="10px"),  # vertical divider
                     rx.input(
-                        placeholder="Buscar acciones en el mercado",
-                        width="100%",  # Make the input field take up the remaining space
-                        padding="8",  # Reduce padding inside the input field
-                        border="none",  # Remove the border
-                        outline="none",  # Remove the outline
-                        font_size="5",  # Adjust the font size
+                        placeholder="buscar acciones en el mercado",
+                        value=SearchState.search_query,
+                        on_change=SearchState.set_search_query,
+                        width="100%",
+                        padding="0 8px",
+                        border="none",
+                        outline="none",
+                        font_size="6",
+                        background="transparent",
                     ),
-                    # Search Button
                     rx.button(
                         "Buscar",
-                        color="white",  # Text color
-                        background="royalblue",  # Background color
-                        padding_x="15",  # Reduce horizontal padding
-                        padding_y="8",  # Reduce vertical padding
-                        border_radius="md",  # Add border radius
-                        _hover={"background": "blue"},  # Change background color on hover
+                        color="white",
+                        background="royalblue",
+                        padding_x="24px",
+                        padding_y="10px",
+                        border_radius="md",
+                        _hover={"background": "blue"},
+                        on_click=SearchState.search_stock,
                     ),
-                    spacing="1",  # Reduce spacing between the icon, input field, and button
-                    align_items="center",  # Align items vertically
-                    width="100%",  # Make the search bar take up the full width
-                    padding="10",  # Add padding inside the search bar
-                    border="1px solid lightgray",  # Add a border around the search bar
-                    border_radius="md",  # Add border radius to the search bar
-                    background="white",  # Background color of the search bar
-                    margin_top="10px",  # Add top margin to move the title down
+                    spacing="0",
+                    align_items="center",
+                    width="100%",
                 ),
-                width="80%",  # Adjust the width of the entire search bar container
-                box_shadow="sm",  # Optional: Add a subtle shadow to the search bar
-                margin_left="50px",  # Add left margin to move the title slightly right
+                width="700px",
+                background="#fdf9f6",
+                border_radius="12px",
+                box_shadow="0 6px 24px 0 #ececec",
+                padding="8px",
+                margin_top="20px",
+                align_self="center",
             ),
+            
+            rx.cond(
+                SearchState.search_result.contains("Error"),
+                rx.text(
+                    SearchState.search_result["Error"],
+                    color="red",
+                    font_weight="bold",
+                    margin_top="20px",
+                    align_self="center",
+                ),
+            ),
+            # Results Box: only show if a search has been made
+            rx.cond(
+                SearchState.search_result.contains("Name"),
+                rx.box(
+                    rx.hstack(
+                        # Left: Price, Name, Buy button
+                        rx.vstack(
+                            rx.text(
+                                f"{SearchState.search_result['Current Price']} €",
+                                font_size="25px",
+                                font_weight="bold",
+                                color="black",
+                            ),
+                            rx.text(
+                                f"{SearchState.search_result['Name']}",
+                                font_size="12px",
+                                color="black",
+                                margin_top="0px",
+                            ),
+                            rx.button(
+                                "Buy",
+                                color="white",
+                                background="royalblue",
+                                border_radius="md",
+                                width="80px",
+                                margin_top="18px",
+                                cursor="pointer",
+                            ),
+                            align_items="flex-start",
+                            spacing="0",
+                            flex="1",
+                        ),
+                        # Right: Logo and Ver Detalles button
+                        rx.vstack(
+                            rx.cond(
+                                SearchState.search_result["Logo"],
+                                rx.image(
+                                    src=SearchState.search_result["Logo"],
+                                    width="100px",
+                                    height="65px",
+                                ),
+                            ),
+                            rx.button(
+                                "Ver Detalles",
+                                color="black",
+                                background="none",
+                                border="none",
+                                border_radius="md",
+                                width="auto",
+                                white_space="nowrap",
+                                text_decoration="underline",
+                                font_weight="normal",
+                                cursor="pointer",
+                                _hover={"text_decoration": "underline", "color": "royalblue"},
+                            ),
+                            align_items="flex-start",
+                            spacing="2",
+                            flex="1",
+                        ),
+                        spacing="6",
+                        align_items="flex-start",
+                        justify_content="space-between",
+                        width="100%",
+                    ),
+                    width="300px",
+                    min_width="260px",
+                    padding="20px",
+                    border_radius="16px",
+                    box_shadow="sm",
+                    background="#dbeafe",
+                    margin_top="20px",
+                    border="none",
+                    align_self="center",
+                ),
+            ),
+            align_items="center",
+            width="100%",
         )
     )
 
