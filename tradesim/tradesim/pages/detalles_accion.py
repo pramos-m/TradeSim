@@ -1,6 +1,6 @@
 import reflex as rx
 from ..state.auth_state import AuthState
-from ..state.news_state import NewsState
+# from ..state.news_state import NewsState # Remove this line if NewsState functionality is merged into AuthState
 from ..pages.noticias import featured_article
 from ..components.layout import layout
 from typing import Dict, List, Tuple # AÑADIDO List y Tuple AQUÍ
@@ -64,9 +64,9 @@ def detalles_accion_page_content() -> rx.Component:
             rx.vstack(
                 rx.hstack(
                     rx.cond(
-                        AuthState.current_stock_info["logo_url"],
+                        AuthState.current_stock_info.get("logo_url"), # Use .get() for safer condition
                         rx.image(
-                            src=AuthState.current_stock_info["logo_url"],
+                            src=AuthState.current_stock_info.get("logo_url"), # Use .get() for safer src
                             height="48px",
                             width="48px",
                             object_fit="contain",
@@ -131,28 +131,28 @@ def detalles_accion_page_content() -> rx.Component:
             # Right Column: Metrics Grid and Info
             rx.vstack(
                 rx.text(
-                    f"Acció | Cotitzada en {AuthState.current_stock_info.get('exchangeName', 'N/A')}",
+                    f"Acció | Cotitzada en {AuthState.current_stock_info.get('exchangeName', 'N/A')}", # Safe access
                     font_size="0.9em",
                     color_scheme="gray",
                     margin_bottom="0.5em",
                 ),
-                stock_metrics_grid(AuthState.current_stock_metrics_list), # CAMBIADO AQUÍ
+                stock_metrics_grid(AuthState.current_stock_metrics_list), 
                 
                 rx.heading("Informació", size="4", margin_top="2em", margin_bottom="0.5em"),
                 rx.text(
-                    AuthState.current_stock_info.get("longBusinessSummary", "Informació no disponible."),
+                    AuthState.current_stock_info.get("longBusinessSummary", "Informació no disponible."), # Safe access
                     font_size="0.9em",
                     color_scheme="gray",
                     line_height="1.6",
-                    max_height="200px", # Limit height and make scrollable if needed
+                    max_height="200px", 
                     overflow_y="auto",
-                    padding_right="0.5em", # For scrollbar
+                    padding_right="0.5em", 
                 ),
 
-                rx.cond(AuthState.current_stock_info.get("ceo") != "N/A",
+                rx.cond(AuthState.current_stock_info.get("ceo") != "N/A", # Safe access
                     rx.vstack(
                         rx.heading("Conseller delegat, CEO", size="3", margin_top="1.5em", margin_bottom="0.3em"),
-                        rx.text(AuthState.current_stock_info.get("ceo"), font_size="0.9em"),
+                        rx.text(AuthState.current_stock_info.get("ceo"), font_size="0.9em"), # Safe access
                         align_items="start",
                         width="100%"
                     )
@@ -244,5 +244,5 @@ def detalles_accion_page() -> rx.Component:
 detalles_accion = rx.page(
     route="/detalles_accion/[symbol]",  # Ruta dinámica
     title="TradeSim - Detalles de Acción",
-    on_load=[AuthState.load_stock_page_data, NewsState.get_news]  # Cambiado a NewsState.get_news
+    on_load=[AuthState.load_stock_page_data, AuthState.get_news]  # Changed to AuthState.get_news
 )(detalles_accion_page)

@@ -748,7 +748,7 @@ class AuthState(rx.State):
         try:
             pnl_symbol = "AAPL"
             quantity = 10
-            if quantity > 0:
+            if self.user_id:
                 daily_pnl_val, daily_df = self._calculate_stock_pnl(pnl_symbol, "1D", quantity)
                 self.daily_pnl = daily_pnl_val if daily_pnl_val is not None else 0.0
                 self.daily_pnl_chart_data = daily_df
@@ -767,11 +767,16 @@ class AuthState(rx.State):
                 self.monthly_pnl_chart_data = empty_df
                 self.yearly_pnl_chart_data = empty_df
             
-            self._load_simulated_portfolio_with_api_prices()
-            yield self._update_portfolio_chart_data()
-            yield self._load_recent_transactions()
+            self._load_simulated_portfolio_with_api_prices() # Synchronous call
+
+            # Await async helper methods instead of yielding raw coroutines
+            await self._update_portfolio_chart_data()
+            await self._load_recent_transactions()
+            # If get_news is also part of dashboard loading:
+            # await self.get_news() # Assuming get_news is an async method in AuthState
+
         except Exception as e: 
-            logger.error(f"Error on_mount: {e}", exc_info=True)
+            logger.error(f"Error in dashboard_on_mount: {e}", exc_info=True)
         logger.info("--- Dashboard on_mount END ---")
 
     # --- set_period (Actualiza gráfico portfolio - SIN background) ---
