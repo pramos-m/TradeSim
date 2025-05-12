@@ -305,7 +305,7 @@ def profile_page() -> rx.Component:
                                                 rx.text("Cancelar"),
                                                 spacing="2"
                                             ),
-                                            color="gray.700",
+                                            color="black",
                                             background="white",
                                             border="1px solid",
                                             border_color="gray.300",
@@ -336,7 +336,7 @@ def profile_page() -> rx.Component:
                                         ProfileState.username, 
                                         font_size="xl",
                                         color="black",
-                                        margin_left="48px",
+                                        margin_left="36px",
                                         margin_top="-16px",
                                         margin_bottom="18px"
                                     ),
@@ -349,7 +349,7 @@ def profile_page() -> rx.Component:
                                         ProfileState.email, 
                                         font_size="xl",
                                         color="black",
-                                        margin_left="48px",
+                                        margin_left="36px",
                                         margin_top="-16px",
                                         margin_bottom="18px"
                                     ),
@@ -362,7 +362,7 @@ def profile_page() -> rx.Component:
                                         "**********", 
                                         font_size="xl",
                                         color="black",
-                                        margin_left="48px",
+                                        margin_left="36px",
                                         margin_top="-16px",
                                         margin_bottom="18px"
                                     ),
