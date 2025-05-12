@@ -127,7 +127,6 @@ def profile_page() -> rx.Component:
                             align_items="center",
                             padding="8",
                             width="100%",
-                            height="100%"
                         ),
                         background="#ededed",
                         border_radius="32px",
@@ -135,7 +134,6 @@ def profile_page() -> rx.Component:
                             "base": "100%",
                             "md": "320px"
                         },
-                        min_height="420px",
                         padding="24px",
                         margin_left="32px",
                         margin_right={
@@ -145,7 +143,10 @@ def profile_page() -> rx.Component:
                         margin_bottom={
                             "base": "6",
                             "md": "0"
-                        }
+                        },
+                        min_height="370px",  # Fixed min height so it doesn't grow with the second box
+                        max_height="370px",  # Add a max height to prevent growing when editing
+                        overflow="hidden"
                     ),
                     # Tarjeta 2: Información de Perfil
                     rx.box(
@@ -411,7 +412,6 @@ def profile_page() -> rx.Component:
                         background="#ededed",
                         border_radius="32px",
                         flex="1",
-                        min_height="420px",
                         max_width="600px",
                         margin_left="32px"
                     ),
