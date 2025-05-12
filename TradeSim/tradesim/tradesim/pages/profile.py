@@ -130,14 +130,14 @@ def profile_page() -> rx.Component:
                             height="100%"
                         ),
                         background="#ededed",
-                        border_radius="32px",  # More curved corners
+                        border_radius="32px",
                         width={
                             "base": "100%",
                             "md": "320px"
                         },
                         min_height="420px",
                         padding="24px",
-                        margin_left="32px",  # Move box to the right, away from sidebar
+                        margin_left="32px",
                         margin_right={
                             "base": "0",
                             "md": "0"
@@ -327,59 +327,44 @@ def profile_page() -> rx.Component:
                                 ),
                                 # Modo visualización
                                 rx.vstack(
-                                    rx.vstack(
-                                        rx.hstack(
-                                            rx.icon(tag="user", color="black", box_size="7"),
-                                            rx.text("NOMBRE:", font_weight="bold", color="black", font_size="xl"),
-                                            width="100%",
-                                        ),
-                                        rx.text(
-                                            ProfileState.username, 
-                                            font_size="xl",
-                                            color="black",
-                                            margin_left="48px",
-                                            margin_top="-32px"
-                                        ),
-                                        align_items="flex-start",
-                                        width="100%",
-                                        margin_bottom="18px",
-                                        spacing="2",
+                                    # NOMBRE
+                                    rx.hstack(
+                                        rx.icon(tag="user", color="black", box_size="7"),
+                                        rx.text("NOMBRE:", font_weight="bold", color="black", font_size="xl"),
                                     ),
-                                    rx.vstack(
-                                        rx.hstack(
-                                            rx.icon(tag="mail", color="black", box_size="7"),
-                                            rx.text("EMAIL:", font_weight="bold", color="black", font_size="xl"),
-                                            width="100%",
-                                        ),
-                                        rx.text(
-                                            ProfileState.email, 
-                                            font_size="xl",
-                                            color="black",
-                                            margin_left="48px",
-                                            margin_top="-32px"
-                                        ),
-                                        align_items="flex-start",
-                                        width="100%",
-                                        margin_bottom="18px",
-                                        spacing="2",
+                                    rx.text(
+                                        ProfileState.username, 
+                                        font_size="xl",
+                                        color="black",
+                                        margin_left="48px",
+                                        margin_top="-16px",
+                                        margin_bottom="18px"
                                     ),
-                                    rx.vstack(
-                                        rx.hstack(
-                                            rx.icon(tag="shield", color="black", box_size="7"),
-                                            rx.text("CONTRASEÑA:", font_weight="bold", color="black", font_size="xl"),
-                                            width="100%",
-                                        ),
-                                        rx.text(
-                                            "**********", 
-                                            font_size="xl",
-                                            color="black",
-                                            margin_left="48px",
-                                            margin_top="-32px"
-                                        ),
-                                        align_items="flex-start",
-                                        width="100%",
-                                        margin_bottom="18px",
-                                        spacing="2",
+                                    # EMAIL
+                                    rx.hstack(
+                                        rx.icon(tag="mail", color="black", box_size="7"),
+                                        rx.text("EMAIL:", font_weight="bold", color="black", font_size="xl"),
+                                    ),
+                                    rx.text(
+                                        ProfileState.email, 
+                                        font_size="xl",
+                                        color="black",
+                                        margin_left="48px",
+                                        margin_top="-16px",
+                                        margin_bottom="18px"
+                                    ),
+                                    # CONTRASEÑA
+                                    rx.hstack(
+                                        rx.icon(tag="shield", color="black", box_size="7"),
+                                        rx.text("CONTRASEÑA:", font_weight="bold", color="black", font_size="xl"),
+                                    ),
+                                    rx.text(
+                                        "**********", 
+                                        font_size="xl",
+                                        color="black",
+                                        margin_left="48px",
+                                        margin_top="-16px",
+                                        margin_bottom="18px"
                                     ),
                                     rx.hstack(
                                         rx.button(
@@ -427,7 +412,7 @@ def profile_page() -> rx.Component:
                         border_radius="32px",
                         flex="1",
                         min_height="420px",
-                        max_width="600px",  # Make the second box thinner
+                        max_width="600px",
                         margin_left="32px"
                     ),
                     flex_direction={
