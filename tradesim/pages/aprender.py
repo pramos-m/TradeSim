@@ -218,4 +218,7 @@ def aprender_page() -> rx.Component:
         background="white"
     )
 
-page = aprender_page
+aprender = rx.page(
+    route="/aprender",
+    title="TradeSim - Aprender"
+)(aprender_page)
