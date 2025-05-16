@@ -1,4 +1,9 @@
 import reflex as rx
+from ..state.auth_state import AuthState
+
+# Defineix aquestes constants amb els teus valors reals
+NAVBAR_HEIGHT = "60px"
+DEFAULT_AVATAR = "/default_avatar.png"
 
 def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     """
@@ -15,11 +20,23 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     return rx.box(
         rx.hstack(
             # Profile Section (Left Side)
-            rx.hstack(
-                rx.avatar(src=user_image_url, name=user_name, size="4"),  # Adjust the size of the profile picture
-                rx.text(user_name, font_size="1.5em", font_weight="bold"),  # Adjust the font size of the username
-                spacing="2",
-                align="center",
+            # <<< Secció de perfil clicable >>>
+            rx.link(
+                rx.hstack(
+                    # Avatar corregit (només 1, amb src i fallback)
+                    rx.avatar(
+                        src=user_image_url,
+                        fallback=rx.cond(user_name != "", user_name[:1].upper(), "?"),
+                        size="4" # Mida Radix
+                    ),
+                    rx.text(user_name, font_size="1.5em", font_weight="bold"),
+                    spacing="2",
+                    align="center",
+                    _hover={"opacity": 0.8}, # Efecte visual
+                    transition="all 0.2s ease-in-out", # Efecte visual
+                ),
+                href="/profile", # Enllaç
+                _hover={"text_decoration": "none"}, # Treu subratllat
             ),
             # Spacer to push the logo to the far right
             rx.spacer(),
