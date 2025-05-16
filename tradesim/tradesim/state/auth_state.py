@@ -11,6 +11,7 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 DEFAULT_AVATAR = "/default_avatar.png" # Pots definir la constant aquí
+
 class AuthState(rx.State):
     """Estado de autenticación mejorado."""
     # Authentication state
