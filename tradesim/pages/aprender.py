@@ -1,6 +1,15 @@
 import reflex as rx
+from ..components.layout import layout
 
 def aprender_page() -> rx.Component:
+    """Define la página de perfil, utilizando el componente importado."""
+    return layout(  # Asumiendo que tu layout maneja la sidebar y el padding principal
+        rx.box(
+            aprender_content(),
+        )
+    )
+    
+def aprender_content() -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.heading("Aprender", size="6", margin_top="32px", margin_bottom="16px"),
