@@ -37,6 +37,13 @@ def sidebar() -> rx.Component:
                 cursor="pointer",
                 on_click=lambda: rx.redirect("/buscador"),
             ),
+            # Aprender Button
+            rx.image(
+                src="/aprender.png",  # Path to the buscador icon
+                width="50px",
+                cursor="pointer",
+                on_click=lambda: rx.redirect("/aprender"),
+            ),
             spacing="9",  # Increased spacing value (e.g., "8")
             align="center",  # Center-align buttons horizontally
             justify="center",  # Center-align buttons vertically

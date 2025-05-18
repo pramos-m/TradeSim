@@ -1,8 +1,22 @@
-# models/sector.py
-from sqlalchemy import Column, String
-from ..models.base import BaseModel
+# tradesim/models/sector.py
+from typing import Optional, List
+from sqlmodel import SQLModel, Field, Relationship
 
-class Sector(BaseModel):
+class Sector(SQLModel, table=True):
     __tablename__ = "sectors"
     
-    sector_name = Column(String, nullable=False)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sector_name: str = Field(unique=True, index=True)
+    
+    # Relationship
+    stocks: List["Stock"] = Relationship(back_populates="sector")
+
+class SectorCreate(SQLModel):
+    sector_name: str
+
+class SectorRead(SQLModel):
+    id: int
+    sector_name: str
+
+class SectorUpdate(SQLModel):
+    sector_name: Optional[str] = None

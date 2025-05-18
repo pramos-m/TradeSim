@@ -1,11 +1,10 @@
-# models/base.py
-from sqlalchemy import Column, Integer, DateTime
-from datetime import datetime
-from ..database import Base
+# tradesim/models/base.py
+from sqlmodel import SQLModel
 
-class BaseModel(Base):
-    __abstract__ = True
-    
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+# This is the base class that all models will inherit from
+class BaseModel(SQLModel):
+    """
+    Base model class that all models will inherit from.
+    This provides common functionality and configuration for all models.
+    """
+    pass

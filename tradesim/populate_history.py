@@ -10,7 +10,7 @@ import pandas as pd # yfinance devuelve DataFrames
 
 # --- Configuración ---
 # Define los símbolos de las acciones que quieres poblar
-SYMBOLS_TO_POPULATE = ["AAPL", "GOOGL", "MSFT", "TSLA"]
+SYMBOLS_TO_POPULATE = ["AAPL", "GOOG", "MSFT", "TSLA"]
 # Define el período histórico a obtener (ej: "1y", "2y", "5y", "max")
 HISTORY_PERIOD = "2y"
 # Define un sector_id por defecto (¡IMPORTANTE: Asegúrate que este ID exista en tu tabla sectors!)

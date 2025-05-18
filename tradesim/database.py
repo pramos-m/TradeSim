@@ -26,7 +26,7 @@ def get_db():
          if db and db.is_active: db.close()
 
 # --- Data Population Logic ---
-SYMBOLS_TO_POPULATE = ["AAPL", "GOOGL", "MSFT", "TSLA"]
+SYMBOLS_TO_POPULATE = ["AAPL", "GOOG", "MSFT", "TSLA"]
 HISTORY_PERIOD = "max" # <-- CORREGIDO (antes era "MAX" implícito o "1y", ahora "5y")
 DEFAULT_SECTOR_ID = 1
 

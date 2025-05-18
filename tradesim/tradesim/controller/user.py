@@ -4,7 +4,7 @@ import base64
 from sqlalchemy.sql import func
 from sqlalchemy import desc
 from ..models.stock import Stock
-from ..models.transaction import Transaction
+from ..models.transaction import StockTransaction
 from decimal import Decimal
 from typing import Dict, List, Tuple, Optional
 
@@ -17,6 +17,7 @@ def create_user(db: Session, username: str, email: str, password: str):
     db.refresh(user)
     return user
 
+
 def get_user_by_email(db: Session, email: str):
     """Get user by email."""
     return db.query(User).filter(User.email == email).first()
@@ -25,7 +26,7 @@ def get_user_by_username(db: Session, username: str):
     """Get user by username."""
     return db.query(User).filter(User.username == username).first()
 
-def get_user_by_id(db: Session, user_id: int):
+def get_user_by_id(db: Session, user_id: int) -> User | None:
     """Get user by ID."""
     return db.query(User).filter(User.id == user_id).first()
 
@@ -58,7 +59,7 @@ def get_user_stocks(db: Session, user_id: int) -> List[Dict]:
     """
     # Obtener todas las transacciones del usuario
     portfolio = {}
-    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).all()
+    transactions = db.query(StockTransaction).filter(StockTransaction.user_id == user_id).all()
     
     for transaction in transactions:
         stock_id = transaction.stock_id

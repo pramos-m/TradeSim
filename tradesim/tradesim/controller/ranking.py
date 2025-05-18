@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from ..models.user import User
-from ..models.transaction import Transaction
+from ..models.transaction import StockTransaction
 from ..models.stock import Stock
 from typing import List, Dict
 from decimal import Decimal
@@ -52,13 +52,13 @@ def get_top_performing_stocks(db: Session, limit: int = 5) -> List[Dict]:
     stock_performance = []
     for stock in stocks:
         # Obtener la primera transacción para esta acción
-        first_tx = db.query(Transaction).filter(
-            Transaction.stock_id == stock.id
-        ).order_by(Transaction.timestamp).first()
+        first_tx = db.query(StockTransaction).filter(
+            StockTransaction.stock_id == stock.id
+        ).order_by(StockTransaction.timestamp).first()
         
         if first_tx:
             # Calcular cambio porcentual desde la primera transacción
-            first_price = float(first_tx.price)
+            first_price = float(first_tx.price_per_share)
             current_price = float(stock.current_price)
             
             price_change_percentage = 0.0
