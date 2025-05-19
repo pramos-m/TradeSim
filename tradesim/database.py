@@ -67,8 +67,16 @@ def populate_simulated_history(db: Session):
                 entries_to_add = [StockPriceHistory(stock_id=stock_obj.id, timestamp=pd.to_datetime(ts).to_pydatetime().replace(tzinfo=None), price=Decimal(str(row.get('Close'))).quantize(Decimal("0.01"))) for ts, row in hist.iterrows() if row.get('Close') is not None and stock_obj and stock_obj.id]
                 if entries_to_add: db.add_all(entries_to_add); total_added_count += len(entries_to_add); logger.info(f"Added {len(entries_to_add)} history entries.")
             except Exception as ticker_err: logger.error(f"ERROR processing {symbol}: {ticker_err}", exc_info=True); continue
-        if total_added_count > 0: logger.info(f"\nAttempting COMMIT ({total_added_count} entries)..."); db.commit(); logger.info("COMMIT successful!")
-        else: logger.info("\nNo new entries added.")
+        if total_added_count > 0:
+            logger.info(f"\nAttempting COMMIT ({total_added_count} entries)...")
+            db.commit()
+            logger.info("COMMIT successful!")
+            # FORZAR UN CHECKEO INMEDIATO
+            # new_count = db.query(StockPriceHistory.id).limit(1).scalar()
+            # logger.info(f"VERIFY HISTORY COUNT AFTER COMMIT: {new_count}")
+        else:
+            logger.info("\nNo new entries added to history.")
+
     except Exception as e: logger.error(f"DB ERROR POPULATION: {e}", exc_info=True); logger.warning("ROLLBACK..."); db.rollback()
     finally: logger.info("<<< populate_simulated_history finished.")
 

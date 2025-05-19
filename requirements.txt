@@ -1,11 +1,13 @@
 reflex==0.7.7
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+sqlmodel
+requests
+python-jose[cryptography]
 sqlalchemy
 python-dotenv
 passlib
-python-jose[cryptography]
-bcrypt
 cryptography
-passlib[bcrypt]
 python-multipart
 pydantic
 email-validator
