@@ -1,8 +1,14 @@
 # <<<--- CODI COMPLET FINAL PER A noticias.py --- >>>
 import reflex as rx
+import logging
 # Assegura't que aquestes importacions siguin correctes per al teu projecte
 from ..components.layout import layout
 from ..state.news_state import NewsState, NewsArticle
+
+# Setup logging
+logger = logging.getLogger(__name__)
+if not logger.hasHandlers():
+    logging.basicConfig(level=logging.INFO)
 
 # --- Definició de Colors ---
 BLUE = "#5271FF"
@@ -321,3 +327,41 @@ noticias = rx.page(
     title="TradeSim | Noticias Financieras",
     on_load=NewsState.get_news # Crida a get_news quan es carrega la pàgina
 )(noticias_page)
+
+def news_item_card(news_item: NewsArticle) -> rx.Component: 
+    return rx.link( 
+        rx.card(
+            rx.vstack(
+                rx.image(
+                    src=rx.cond(
+                        (news_item.image) & (news_item.image != ""),
+                        news_item.image,
+                        "/assets/default_news.png"  # Updated path to use /assets/ prefix
+                    ),
+                    alt=news_item.title,
+                    width="100%",
+                    height="200px",
+                    object_fit="cover",
+                    border_radius="var(--radius-2)",
+                    margin_bottom="0.5em",
+                ),
+                rx.text(news_item.title, weight="bold", size="3", mb="0.25rem", max_lines=2, text_overflow="ellipsis", line_height="1.2"),
+                rx.hstack(
+                    rx.text(news_item.publisher, size="1", color_scheme="gray"),
+                    rx.spacer(),
+                    rx.text(news_item.date, size="1", color_scheme="gray"), 
+                    justify="between", width="100%"
+                ),
+                rx.text(news_item.summary, size="2", color_scheme="gray", max_lines=3, text_overflow="ellipsis", margin_top="0.5em", line_height="1.4"),
+                align_items="start", spacing="1", width="100%"
+            ),
+            as_child=True, 
+            size="1",
+            width="100%",
+            _hover={"box_shadow": "var(--shadow-4)"}
+        ),
+        href=news_item.url, 
+        is_external=True, 
+        width="100%",
+        text_decoration="none", 
+    )

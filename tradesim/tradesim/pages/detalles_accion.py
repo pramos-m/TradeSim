@@ -1,7 +1,8 @@
 # tradesim/tradesim/pages/detalles_accion.py
 import reflex as rx
 from reflex.vars import Var 
-from ..state.auth_state import AuthState, NewsArticle 
+from ..state.auth_state import AuthState, NewsArticle # Import NewsArticle from AuthState
+from ..state.news_state import NewsState # Import NewsState
 from ..components.layout import layout 
 from typing import Dict, List, Tuple, Any 
 
@@ -54,30 +55,29 @@ def stock_metrics_grid(metrics_list_var: rx.Var[List[Tuple[str, str]]]) -> rx.Co
         min_height="200px" 
     )
 
-# Helper para mostrar tarjetas de noticias (USA RX.LINK)
+# Helper para mostrar tarjetas de noticias
 def news_item_card(news_item: NewsArticle) -> rx.Component: 
     return rx.link( 
         rx.card(
             rx.vstack(
-                rx.text(news_item.title, weight="bold", size="3", mb="0.25rem", max_lines=2, text_overflow="ellipsis"),
+                # Removed image display
+                rx.text(news_item.title, weight="bold", size="3", mb="0.25rem", max_lines=2, text_overflow="ellipsis", line_height="1.2"),
                 rx.hstack(
                     rx.text(news_item.publisher, size="1", color_scheme="gray"),
                     rx.spacer(),
-                    rx.text(news_item.date, size="1", color_scheme="gray"), 
-                    justify="between", width="100%"
+                    rx.text(news_item.date, size="1", color_scheme="gray"),
+                    width="100%",
                 ),
-                rx.text(news_item.summary, size="2", color_scheme="gray", max_lines=3, text_overflow="ellipsis", margin_top="0.5em"),
-                align_items="start", spacing="1", width="100%"
+                align_items="start",
+                width="100%",
             ),
-            as_child=True, 
-            size="1",
             width="100%",
-            _hover={"box_shadow": "var(--shadow-4)"}
+            _hover={"transform": "translateY(-2px)", "box_shadow": "lg"},
+            transition="all 0.2s ease-in-out",
         ),
-        href=news_item.url, 
-        is_external=True, 
-        width="100%",
-        text_decoration="none", 
+        href=news_item.url,
+        is_external=True,
+        _hover={"text_decoration": "none"},
     )
 
 def detalles_accion_page_content() -> rx.Component:
@@ -87,21 +87,6 @@ def detalles_accion_page_content() -> rx.Component:
             # Columna Izquierda
             rx.vstack(
                 rx.hstack(
-                    rx.cond(
-                        AuthState.current_stock_info.get("logo_url"),
-                        rx.image(
-                            src=AuthState.current_stock_info.get("logo_url"),
-                            alt=AuthState.current_stock_info.get("name", "Logo"),
-                            height="48px", width="48px", object_fit="contain", margin_right="0.75em",
-                            border_radius="var(--radius-2)",
-                            fallback=rx.icon(tag="image", size=32, color_scheme="gray")
-                        ),
-                        rx.avatar(
-                            fallback=AuthState.stock_symbol_first_letter_for_avatar, 
-                            size="5", 
-                            radius="medium"
-                        )
-                    ),
                     rx.vstack(
                         rx.heading(
                             AuthState.current_stock_info.get("name", AuthState.viewing_stock_symbol),
@@ -112,6 +97,33 @@ def detalles_accion_page_content() -> rx.Component:
                             size="3", color_scheme="gray"
                         ),
                         align_items="start", spacing="0"
+                    ),
+                    rx.spacer(),
+                    rx.cond(
+                        AuthState.current_stock_info.get("logo_url"),
+                        rx.image(
+                            src=AuthState.current_stock_info.get("logo_url"),
+                            alt=f"Logo de {AuthState.current_stock_info.get('name')}",
+                            width="48px",
+                            height="48px",
+                            object_fit="contain",
+                            border_radius="var(--radius-2)",
+                        ),
+                        rx.box(
+                            rx.text(
+                                AuthState.stock_symbol_first_letter_for_avatar,
+                                font_size="24px",
+                                font_weight="bold",
+                                color="var(--gray-11)",
+                            ),
+                            width="48px",
+                            height="48px",
+                            display="flex",
+                            align_items="center",
+                            justify_content="center",
+                            background="var(--gray-a3)",
+                            border_radius="var(--radius-2)",
+                        )
                     ),
                     align_items="center", spacing="3", width="100%"
                 ),
@@ -147,7 +159,7 @@ def detalles_accion_page_content() -> rx.Component:
                         placeholder="Cantidad", type="number", size="2",
                         value=AuthState.buy_sell_quantity.to(str), 
                         on_change=AuthState.set_buy_sell_quantity,
-                        min_="1", # Asegurar que no sea negativo o cero
+                        min_="1", 
                         width="100px"
                     ),
                     rx.button("Comprar", size="2", color_scheme="green", 
@@ -196,44 +208,26 @@ def detalles_accion_page_content() -> rx.Component:
             align_items="start", 
             padding_top="1em", padding_x="1em"
         ),
-
-        # Sección de Noticias
-        rx.vstack(
-            rx.heading("Noticias Destacadas", size="6", margin_top="3em", margin_bottom="1em", padding_x="1em"),
-            rx.cond(
-                AuthState.has_news, # Usar has_news para decidir si mostrar noticias o el fallback
+        
+        # Noticias relacionadas (debajo de las dos columnas principales)
+        rx.cond(
+            AuthState.is_authenticated & AuthState.featured_stock_page_news.length() > 0, # Solo mostrar si autenticado y hay noticias
+            rx.vstack(
+                rx.heading(f"Noticias sobre {AuthState.viewing_stock_symbol}", size="5", margin_top="2em", margin_bottom="1em"),
                 rx.grid(
                     rx.foreach(
-                        AuthState.featured_stock_page_news, 
-                        news_item_card 
+                        AuthState.featured_stock_page_news, # Usar las noticias procesadas del estado
+                        lambda news_item: news_item_card(news_item)
                     ),
-                    columns="1fr 1fr 1fr", 
-                    spacing="4",
-                    width="100%",
-                    padding_x="1em"
+                    columns="repeat(auto-fill, minmax(300px, 1fr))", # Responsive grid
+                    gap="1em",
+                    width="100%"
                 ),
-                # Mensaje si no hay noticias (ya manejado por _create_fallback_news si la API falla)
-                # O si la lista está vacía después de una carga exitosa sin resultados.
-                rx.cond(
-                    ~AuthState.is_loading_news & (AuthState.processed_news.length() == 0),
-                     rx.center( 
-                        rx.text("No hay noticias destacadas disponibles para esta acción.",color_scheme="gray"), 
-                        padding_y="2em"
-                    )
-                )
+                width="100%",
             ),
-            rx.cond(
-                AuthState.is_loading_news,
-                 rx.center(rx.spinner(), padding_y="2em") # Spinner mientras carga
-            ),
-            rx.button(
-                "Ver Todas las Noticias",
-                on_click=rx.redirect("/noticias"), 
-                size="3", color_scheme="blue", variant="outline",
-                margin_top="1.5em", margin_bottom="2em"
-            ),
-            align_items="stretch", width="100%",
+            None # No mostrar nada si no hay noticias o no está autenticado
         ),
+
         spacing="5", width="100%", max_width="1400px", margin_x="auto", padding_bottom="2em"
     )
 
@@ -247,7 +241,7 @@ def detalles_accion_page() -> rx.Component:
                 rx.vstack(
                     rx.spinner(size="3"),
                     rx.text(f"Cargando detalles para {AuthState.viewing_stock_symbol}...", margin_top="1em", color_scheme="gray"),
-                spacing="3"
+                    spacing="3"
                 ), 
                 min_height="80vh" 
             ),
@@ -255,11 +249,11 @@ def detalles_accion_page() -> rx.Component:
                 AuthState.current_stock_info.contains("error"),
                 rx.center(
                     rx.vstack(
-                        rx.icon(tag="alert_circle", size=48, color_scheme="red"), 
+                        rx.icon(tag="circle_help", size=48, color_scheme="red"), 
                         rx.heading("Error al Cargar Datos", color_scheme="red", margin_top="0.5em"),
                         rx.text(AuthState.current_stock_info.get("error", "Error desconocido.")),
                         rx.button("Volver al Dashboard", on_click=rx.redirect("/dashboard"), margin_top="1em", color_scheme="gray"),
-                    spacing="3"
+                        spacing="3"
                     ), 
                     min_height="80vh"
                 ),
@@ -271,6 +265,5 @@ def detalles_accion_page() -> rx.Component:
 detalles_accion_page_instance = rx.page( 
     route="/detalles_accion/[symbol]",
     title="TradeSim - Detalles de Acción",
-    on_load=AuthState.stock_detail_page_on_mount # Simplificado
+    on_load=AuthState.stock_detail_page_on_mount 
 )(detalles_accion_page)
-

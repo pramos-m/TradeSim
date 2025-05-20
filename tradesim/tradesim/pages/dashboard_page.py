@@ -14,6 +14,8 @@ import logging
 from decimal import Decimal
 from ..models.user import User
 from ..models.portfolio_item import PortfolioItemDB
+from ..state.search_state import SearchState # Asegúrate que la ruta a tu SearchState es correcta
+
 
 print(f"DEBUG dashboard_page.py: AuthState imported. Has portfolio_chart_hover_info? {hasattr(AuthState, 'portfolio_chart_hover_info')}")
 print(f"DEBUG dashboard_page.py: AuthState imported. Has total_portfolio_value? {hasattr(AuthState, 'total_portfolio_value')}")
@@ -63,39 +65,65 @@ def period_selector(selected: rx.Var[str], handler: rx.EventHandler) -> rx.Compo
 # Tarjeta Stock Portfolio (modificado para incluir logo)
 def portfolio_stock_card(item: PortfolioItem) -> rx.Component:
     logo_src = item.logo_url  # URL del logo de la acción
-    details_link = rx.link("Ver Detalles", href="#", size="1", color_scheme="blue")
-    return rx.card(
-        rx.hstack(
-            rx.image(
-                src=logo_src,
-                width="40px",
-                height="40px",
-                object_fit="contain",
-                fallback="/default_logo.png",
-                mr="3",
-            ),  # Mostrar el logo
-            rx.vstack(
-                rx.text(item.name, font_weight="medium", size="2", no_of_lines=1),
-                rx.text(f"{item.quantity} Acciones", font_size="1", color=TEXT_GRAY),
-                align_items="start",
-                spacing="0",
+    # Include the 'Ver Detalles' link as in the user's provided code, but also keep the whole card clickable.
+    details_link = rx.link("Ver Detalles", href="#", size="1", color_scheme="blue") # Keep the link text and style
+    
+    # Use rx.cond to handle cases where item.symbol might be None or empty
+    return rx.cond(
+        item.symbol & (item.symbol != ""), # Condition: symbol is not None and not empty string
+        rx.card(
+            rx.hstack(
+                rx.image(
+                    src=logo_src,
+                    width="40px",
+                    height="40px",
+                    object_fit="contain",
+                    fallback_src="/assets/default_logo.png", # Corrected prop name
+                    mr="3",
+                ),  # Mostrar el logo
+                rx.vstack(
+                    # Using rx.text for name and quantity as in the provided code
+                    rx.text(item.name, font_weight="medium", size="2", no_of_lines=1), 
+                    rx.text(f"{item.quantity} Acciones", font_size="1", color=TEXT_GRAY),
+                    align_items="start",
+                    spacing="0",
+                ),
+                rx.spacer(), # Use spacer to push the next vstack to the right
+                rx.vstack(
+                    rx.text(f"$ {item.current_value:,.2f}", font_weight="medium", size="2", text_align="right"),
+                    details_link, # Keep the 'Ver Detalles' link here
+                    align_items="end",
+                    spacing="1",
+                ),
+                spacing="4",
+                align="center",
+                width="100%",
+                # The justify="space-between" is replaced by rx.spacer()
             ),
-            rx.spacer(),
-            rx.vstack(
-                rx.text(f"$ {item.current_value:,.2f}", font_weight="medium", size="2", text_align="right"),
-                details_link,
-                align_items="end",
-                spacing="1",
-            ),
-            spacing="4",
-            align="center",
-            width="100%",
+            size="1", # Keep size="1"
+            bg="white",
+            border_radius="xl",
+            box_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)",
+            p="4", # Keep p="4"
+            cursor="pointer", # Add cursor pointer to indicate clickability
+            # Make the entire card clickable to navigate to the stock detail page
+            on_click=AuthState.go_to_stock_detail_global(item.symbol), 
         ),
-        size="1",
-        bg="white",
-        border_radius="xl",
-        box_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)",
-        p="4",
+        # Fallback view if symbol is invalid - use a simple, non-erroring version
+        rx.card(
+            rx.vstack(
+                rx.icon(tag="alert_triangle", size=24, color="var(--gray-11)"),
+                rx.text("Datos de acción no disponibles", size="2", color=TEXT_GRAY),
+                align="center",
+                spacing="2",
+            ),
+            size="1",
+            bg="gray.50",
+            border_radius="xl",
+            box_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
+            p="4",
+            width="100%",
+        )
     )
 
 # Componente para Fila de Transacción
@@ -153,7 +181,7 @@ def dashboard_page() -> rx.Component:
         rx.card(
             rx.vstack(
                 rx.vstack( # Info Valor/Cambio Portfolio
-                        rx.heading(rx.cond(AuthState.portfolio_chart_hover_info, f"${AuthState.total_portfolio_value:,.2f} USD", f"${AuthState.stock_detail_chart_change_info['last_price']:,.2f} USD"), size="6", weight="bold"),                        
+                        rx.heading(rx.cond(AuthState.portfolio_chart_hover_info, f"${AuthState.portfolio_display_value:,.2f} USD", AuthState.formatted_total_portfolio_value), size="6", weight="bold"),                        
                         rx.hstack(
                         rx.match(AuthState.is_portfolio_value_change_positive, (True, rx.icon(tag="arrow_up", size=16, color=AuthState.portfolio_chart_color)), (False, rx.icon(tag="arrow_down", size=16, color=AuthState.portfolio_chart_color)), rx.text("?", font_size="sm")),
                         rx.text(rx.cond(AuthState.portfolio_show_absolute_change, AuthState.formatted_portfolio_value_change_abs, f"({AuthState.formatted_portfolio_value_percent_change}%)"), color=AuthState.portfolio_chart_color, size="4", weight="medium", on_click=AuthState.portfolio_toggle_change_display, cursor="pointer"),
@@ -284,9 +312,11 @@ def portfolio_table():
                         rx.td(
                             rx.hstack(
                                 rx.button(
-                                    "Ver Detalles",
-                                    on_click=rx.redirect(f"/detalles_accion/{item.symbol}")
-                                ),
+                                "Ver Detalles", 
+                                on_click=lambda: SearchState.go_to_stock_detail(SearchState.search_result.get("Symbol")),
+                                color_scheme="blue", variant="solid", size="2", margin_top="16px",
+                                is_disabled=(SearchState.search_result.get("Symbol", "N/A") == "N/A")
+                            ),
                                 rx.button(
                                     "Vender",
                                     on_click=rx.redirect(f"/detalles_accion/{item.symbol}")

@@ -11,7 +11,7 @@ def index_content() -> rx.Component:
         # Logo con posición responsiva
         rx.box(
             rx.image(
-                src="/logo.svg",
+                src="/assets/logo.svg",
                 height=["60px", "100px", "150px", "200px"],
                 width="auto",
             ),

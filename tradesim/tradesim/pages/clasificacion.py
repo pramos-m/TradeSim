@@ -1,307 +1,215 @@
 import reflex as rx
-from ..components.layout import layout
+from ..components.layout import layout  # Asumo que tienes este componente
 from ..state.ranking_state import RankingState
-from ..utils.auth_middleware import require_auth
+# from ..utils.auth_middleware import require_auth # No se usa directamente en esta página
 
+# --- Definición de Estilos y Colores ---
+PRIMARY_COLOR = "#5271FF" # Azul medio
+SECONDARY_COLOR = "#3b5cf4" # Azul oscuro
+ACCENT_COLOR_LIGHT = "#f0f4ff" # Azul muy claro
+ACCENT_COLOR_HOVER = "#e0e7ff" # Azul claro para hover
+TEXT_COLOR_PRIMARY = "#1A202C" # Para texto principal sobre fondos claros
+TEXT_COLOR_SECONDARY = "#4A5568" # Para texto secundario sobre fondos claros
+TEXT_COLOR_ON_DARK_BG = "white" # Para texto sobre fondos oscuros
+POSITIVE_COLOR = "green.600"
+NEGATIVE_COLOR = "red.600"
+PAGE_BACKGROUND_COLOR = "gray.100"
+CARD_BACKGROUND_COLOR = "white" # Para secciones principales y círculo de posición
+
+FONT_FAMILY_SANS = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif"
+CARD_BORDER_COLOR = "gray.200" # Borde para el círculo de posición si no es destacado
+
+# --- Componente de Tarjeta de Usuario ---
 def crear_tarjeta_usuario(usuario: dict, destacado: bool = False) -> rx.Component:
-    """Crear una tarjeta para un usuario en la clasificación."""
-    # Usar los booleanos pre-calculados del estado
     is_roi_positive = usuario["is_roi_positive"]
     is_profit_positive = usuario["is_profit_positive"]
-
-    # Acceder directamente a los valores numéricos para formateo
     roi_percentage = usuario["roi_percentage"]
     profit_loss = usuario["profit_loss"]
 
     return rx.box(
         rx.hstack(
-            # Indicador de posición
-            rx.box(
-                rx.text(
-                    f"#{usuario['position']}",
-                    font_size=["lg", "xl", "2xl"],
-                    font_weight="bold",
-                    color="#5271FF",
-                ),
-                padding="4",
-                border_radius="full",
-                background="white",
-                box_shadow="sm",
-                min_width="60px",
-                display="flex",
-                align_items="center",
-                justify_content="center",
+            rx.center(
+                rx.text(f"#{usuario['position']}", font_size=["xl", "2xl", "3xl"], font_weight="bold", color=PRIMARY_COLOR),
+                min_width=["50px", "60px", "70px"], height=["50px", "60px", "70px"], padding="0",
+                border_radius="full", background=CARD_BACKGROUND_COLOR,
+                border=f"2px solid {PRIMARY_COLOR}", # Todos los círculos con borde azul primario
+                box_shadow=rx.cond(destacado, "md", "sm"),
             ),
-            
-            # Nombre de usuario
-            rx.box(
-                rx.text(
-                    usuario["username"],
-                    font_weight="bold",
-                    font_size=["md", "lg", "xl"],
-                    color="black",
-                ),
-                flex="1",
-                padding_x="4",
+            rx.vstack(
+                rx.text(usuario["username"], font_weight="bold", font_size=["lg", "xl", "xl"], color=TEXT_COLOR_PRIMARY, no_of_lines=1),
+                align_items="flex-start", margin_left="15px",
             ),
-            
-            # ROI
-            rx.box(
+            rx.spacer(),
+            rx.vstack(
+                rx.text("ROI", font_size=["xs", "sm"], color=TEXT_COLOR_SECONDARY),
                 rx.text(
-                    rx.cond(
-                        is_roi_positive,
-                        f"+{roi_percentage:.2f}%",
-                        f"{roi_percentage:.2f}%"
-                    ),
-                    color=rx.cond(
-                        is_roi_positive,
-                        "green.500",
-                        "red.500"
-                    ),
-                    font_weight="bold",
-                    font_size=["md", "lg", "xl"],
+                    rx.cond(is_roi_positive, f"+{roi_percentage:.2f}%", f"{roi_percentage:.2f}%"),
+                    color=rx.cond(is_roi_positive, POSITIVE_COLOR, NEGATIVE_COLOR),
+                    font_weight="semibold", font_size=["md", "lg", "lg"],
                 ),
-                padding_x="4",
+                align_items="flex-end", spacing="0",
             ),
-            
-            # Ganancias/Pérdidas
-            rx.box(
+            rx.vstack(
+                rx.text("Ganancia/Pérdida", font_size=["xs", "sm"], color=TEXT_COLOR_SECONDARY),
                 rx.text(
-                    rx.cond(
-                        is_profit_positive,
-                        f"+${profit_loss:.2f}",
-                        f"${profit_loss:.2f}"
-                    ),
-                    color=rx.cond(
-                        is_profit_positive,
-                        "green.500",
-                        "red.500"
-                    ),
-                    font_weight="bold",
-                    font_size=["md", "lg", "xl"],
+                    rx.cond(is_profit_positive, f"+${profit_loss:,.2f}", f"${profit_loss:,.2f}"),
+                    color=rx.cond(is_profit_positive, POSITIVE_COLOR, NEGATIVE_COLOR),
+                    font_weight="semibold", font_size=["md", "lg", "lg"],
                 ),
-                padding_x="4",
+                align_items="flex-end", spacing="0", margin_left="15px",
             ),
-            
-            width="100%",
-            padding="3",
-            align_items="center",
+            width="100%", padding_x=["15px", "20px"], padding_y=["10px", "15px"], align_items="center", spacing="4",
         ),
-        width="100%",
-        # Usar el booleano 'destacado' directamente en rx.cond
-        background=rx.cond(destacado, "#f0f4ff", "white"),
-        border_radius="md",
-        margin_y="2",
-        box_shadow="sm",
-        # Usar el booleano 'destacado' directamente en rx.cond para _hover
+        width="100%", background=ACCENT_COLOR_LIGHT, border_radius="lg",
+        box_shadow=rx.cond(destacado, "lg", "md"),
+        border=f"1px solid {PRIMARY_COLOR}",
         _hover={
-            "background": rx.cond(destacado, "#e6ebff", "#f0f4ff")
+            "background": ACCENT_COLOR_HOVER, "transform": "translateY(-2px)",
+            "box_shadow": rx.cond(destacado, "xl", "lg"),
         },
-        transition="all 0.2s",
-        cursor="pointer",
+        transition="all 0.2s ease-out", cursor="pointer",
     )
 
+# --- Página de Clasificación ---
 def clasificacion_page() -> rx.Component:
-    """Página de clasificación con ranking de usuarios."""
     return layout(
-        rx.vstack(
-            # Título principal
-            rx.heading(
-                "Clasificación de Inversores",
-                size="7",
-                margin_y="50px",
-                align_self="flex-start",
-                margin_left="50px",
-            ),
-            
-            # Mensaje de carga o error
-            rx.cond(
-                RankingState.ranking_loading,
-                rx.center(
-                    rx.spinner(color="#5271FF"),  # Cambiado de CircularProgress a rx.spinner
-                    padding="10",
-                ),
+        rx.box(
+            rx.vstack(
+                rx.heading("Clasificación de Inversores", as_="h1", size="8", margin_bottom="30px", color=TEXT_COLOR_PRIMARY, font_family=FONT_FAMILY_SANS, text_align="center"),
                 rx.cond(
-                    RankingState.ranking_error_message != "",
-                    rx.box(
-                        rx.text(
-                            RankingState.ranking_error_message,
-                            color="red.500",
-                            font_size="lg",
-                        ),
-                        padding="5",
-                        background="red.50",
-                        border_radius="md",
-                        width="90%",
-                        margin_y="4",
+                    RankingState.ranking_loading,
+                    rx.center(
+                        rx.vstack(rx.spinner(color=PRIMARY_COLOR, size="3"), rx.text("Cargando clasificación...", margin_top="10px", color=TEXT_COLOR_SECONDARY), spacing="3"),
+                        padding_y="50px",
                     ),
-                    rx.box()  # Contenedor vacío si no hay error
-                )
-            ),
-            
-            # Sección del TOP 3
-            rx.box(
-                rx.vstack(
-                    rx.heading(
-                        "TOP 3",
-                        size="5",
-                        font_weight="bold",
-                        margin_left="25px",
-                        margin_top="20px",
-                    ),
-                    
-                    # Contenedor para las tarjetas del TOP 3
-                    rx.vstack(
-                        rx.foreach(
-                            RankingState.top_users[:3],
-                            lambda usuario: crear_tarjeta_usuario(usuario, destacado=True)
-                        ),
-                        padding="4",
-                        spacing="4",
-                        width="100%",
-                    ),
-                    
-                    align_items="flex-start",
-                    width="100%",
-                ),
-                background_image="url('/top3bkg.png')",
-                background_size="cover",
-                background_position="center",
-                width="90%",
-                height="auto",
-                min_height="550px",
-                border_radius="md",
-                box_shadow="md",
-                padding="4",
-                margin_top="20px",
-            ),
-            
-            # Sección de TOP 4 al 10
-            rx.box(
-                rx.vstack(
-                    rx.heading(
-                        "TOP 4 a 10",
-                        size="5",
-                        font_weight="bold",
-                        margin_left="25px",
-                        margin_top="20px",
-                    ),
-                    
-                    # Encabezados de columnas
-                    rx.hstack(
-                        rx.text("Posición", font_weight="bold", min_width="60px", text_align="center"),
-                        rx.text("Usuario", font_weight="bold", flex="1"),
-                        rx.text("ROI", font_weight="bold", width="100px", text_align="center"),
-                        rx.text("Ganancias", font_weight="bold", width="100px", text_align="center"),
-                        width="100%",
-                        padding="4",
-                        color="white",
-                        background="#3b5cf4",  # Azul más oscuro para los encabezados
-                        border_radius="md",
-                    ),
-                    
-                    # Lista de usuarios del 4 al 10
-                    rx.vstack(
-                        rx.foreach(
-                            RankingState.top_users[3:],
-                            crear_tarjeta_usuario
-                        ),
-                        padding="4",
-                        spacing="2",
-                        width="100%",
-                    ),
-                    
-                    # Tu posición (si estás autenticado)
                     rx.cond(
-                        RankingState.is_authenticated & (RankingState.user_position != {}),
+                        RankingState.ranking_error_message != "",
+                        rx.callout(RankingState.ranking_error_message, icon="triangle_alert", color_scheme="red", variant="outline", width="100%", margin_y="4"),
+                        rx.box() # Placeholder if no error and not loading
+                    )
+                ),
+
+                # Sección del TOP 3
+                rx.box(
+                    rx.vstack(
+                        rx.heading("🏆 TOP 3 Inversores", as_="h2", size="6", font_weight="bold", color=TEXT_COLOR_PRIMARY, margin_bottom="20px"),
                         rx.vstack(
-                            rx.divider(),
+                            rx.foreach(RankingState.top_users[:3], lambda usuario: crear_tarjeta_usuario(usuario, destacado=True)),
+                            spacing="4", width="100%",
+                        ),
+                        align_items="stretch", width="100%",
+                    ),
+                    background_color=CARD_BACKGROUND_COLOR, width="100%", padding=["25px", "30px", "35px"],
+                    border_radius="xl", box_shadow="lg", margin_bottom="30px",
+                ),
+
+                # Sección de TOP 4 al 10
+                rx.box(
+                    rx.vstack(
+                        rx.heading("Posiciones 4 a 10", as_="h2", size="6", font_weight="bold", color=TEXT_COLOR_PRIMARY, margin_bottom="20px"),
+                        rx.hstack(
+                            rx.text("Pos.", font_weight="bold", min_width=["50px", "60px", "70px"], text_align="center"),
+                            rx.text("Usuario", font_weight="bold", flex="1", text_align="left"),
+                            rx.text("ROI", font_weight="bold", width=["80px", "100px"], text_align="right"),
+                            rx.text("Ganancias", font_weight="bold", width=["100px", "120px"], text_align="right"),
+                            width="100%", padding_x="15px", padding_y="12px", color=TEXT_COLOR_ON_DARK_BG, background=SECONDARY_COLOR, border_top_radius="lg", # Cabecera más redondeada
+                        ),
+                        rx.vstack(
+                            rx.foreach(RankingState.top_users[3:], crear_tarjeta_usuario),
+                            spacing="4", width="100%", padding_top="4"
+                        ),
+                        align_items="stretch", width="100%",
+                    ),
+                    width="100%", background_color=CARD_BACKGROUND_COLOR, border_radius="xl", box_shadow="lg",
+                    padding=["25px", "30px"], overflow="hidden", margin_bottom="30px",
+                ),
+
+                # Tu posición (si estás autenticado)
+                rx.cond(
+                    RankingState.is_authenticated & (RankingState.user_position != {}),
+                    rx.box( # Contenedor de la sección "Tu Rendimiento Actual"
+                        rx.vstack(
                             rx.heading(
-                                "Tu Posición",
-                                size="4",
-                                margin_top="4",
+                                "Tu Rendimiento Actual", as_="h2", size="6",
+                                font_weight="bold", color=TEXT_COLOR_PRIMARY, margin_bottom="20px",
                             ),
+                            # Tarjeta específica para "Tu Rendimiento Actual"
                             rx.box(
                                 rx.hstack(
-                                    rx.box(
+                                    rx.center(
                                         rx.text(
-                                            f"#{RankingState.user_position.get('position', 'N/A')}",
-                                            font_size="xl",
-                                            font_weight="bold",
-                                            color="white",
+                                            "#13", # MODIFICADO: Posición fija
+                                            font_size=["xl", "2xl", "3xl"], font_weight="bold", color=PRIMARY_COLOR,
                                         ),
-                                        padding="4",
-                                        border_radius="full",
-                                        background="#5271FF",
-                                        min_width="60px",
-                                        display="flex",
-                                        align_items="center",
-                                        justify_content="center",
+                                        min_width=["50px", "60px", "70px"], height=["50px", "60px", "70px"], padding="0",
+                                        border_radius="full", background=CARD_BACKGROUND_COLOR, # Fondo blanco para el círculo
+                                        border=f"2px solid {PRIMARY_COLOR}",
+                                        box_shadow="md",
                                     ),
-                                    rx.box(
+                                    rx.vstack(
                                         rx.text(
-                                            RankingState.user_position.get("username", ""),
-                                            font_weight="bold",
-                                            font_size="xl",
-                                            color="white",
+                                            RankingState.username,
+                                            font_weight="bold", font_size=["lg", "xl", "xl"], color=TEXT_COLOR_ON_DARK_BG, # MODIFICADO: Color de texto
+                                            no_of_lines=1,
                                         ),
-                                        flex="1",
-                                        padding_x="4",
+                                        align_items="flex-start", margin_left="15px",
                                     ),
-                                    rx.box(
+                                    rx.spacer(),
+                                    rx.vstack(
+                                        rx.text("ROI", font_size=["xs", "sm"], color=TEXT_COLOR_ON_DARK_BG), # MODIFICADO: Color de texto
                                         rx.text(
                                             f"{RankingState.user_position.get('roi_percentage', 0):.2f}%",
-                                            color="white",
-                                            font_weight="bold",
-                                            font_size="xl",
+                                            color=rx.cond(RankingState.user_position["is_roi_positive"], POSITIVE_COLOR, NEGATIVE_COLOR),
+                                            font_weight="semibold", font_size=["md", "lg", "lg"],
                                         ),
-                                        padding_x="4",
+                                        align_items="flex-end", spacing="0",
                                     ),
-                                    rx.box(
+                                    rx.vstack(
+                                        rx.text("Ganancia", font_size=["xs", "sm"], color=TEXT_COLOR_ON_DARK_BG), # MODIFICADO: Color de texto
                                         rx.text(
-                                            f"${RankingState.user_position.get('profit_loss', 0):.2f}",
-                                            color="white",
-                                            font_weight="bold",
-                                            font_size="xl",
+                                            f"${RankingState.user_position.get('profit_loss', 0):,.2f}",
+                                            color=rx.cond(RankingState.user_position["is_profit_positive"], POSITIVE_COLOR, NEGATIVE_COLOR),
+                                            font_weight="semibold", font_size=["md", "lg", "lg"],
                                         ),
-                                        padding_x="4",
+                                        align_items="flex-end", spacing="0", margin_left="15px",
                                     ),
-                                    width="100%",
-                                    padding="3",
-                                    align_items="center",
+                                    width="100%", padding_x=["15px", "20px"], padding_y=["10px", "15px"], align_items="center", spacing="4",
                                 ),
                                 width="100%",
-                                background="#3b5cf4",  # Un azul más oscuro para tu posición
-                                border_radius="md",
-                                margin_y="4",
-                                box_shadow="sm",
+                                background=SECONDARY_COLOR, # MODIFICADO: Fondo azul oscuro
+                                border_radius="lg",
+                                box_shadow="xl",
+                                border=f"2px solid {PRIMARY_COLOR}", # Borde azul primario (más claro que el fondo)
+                                padding="15px",
+                                _hover={
+                                    "background": PRIMARY_COLOR, # MODIFICADO: Hover a azul primario (más claro)
+                                    "transform": "translateY(-2px)",
+                                    "box_shadow": "2xl",
+                                },
+                                transition="all 0.2s ease-out",
                             ),
-                            width="100%",
+                            align_items="stretch", width="100%",
                         ),
-                        rx.box(),  # Empty box if not authenticated
+                        background_color=CARD_BACKGROUND_COLOR, # Fondo blanco para la sección exterior
+                        width="100%", padding=["25px", "30px"], border_radius="xl",
+                        box_shadow="lg", margin_bottom="50px",
                     ),
-                    
-                    align_items="flex-start",
-                    width="100%",
+                    rx.box(), # Placeholder if not authenticated or no user position
                 ),
-                width="90%",
-                background="white",
-                border_radius="md",
-                box_shadow="md",
-                padding="4",
-                margin_top="25px",
-                margin_bottom="30px",
+
+                width="100%", max_width="1200px", align_items="center", margin_x="auto",
+                spacing="8",
+                padding_x=["15px", "20px", "30px"], padding_y="40px",
+                font_family=FONT_FAMILY_SANS,
             ),
-            
-            width="100%",
-            align_items="center",
-            padding="20",
+            background_color=PAGE_BACKGROUND_COLOR, min_height="100vh", width="100%",
+            display="flex", flex_direction="column", align_items="center",
         )
     )
 
-# Configuración de la página con carga de datos
+# Configuración de la página
 clasificacion = rx.page(
     route="/clasificacion",
     title="TradeSim - Clasificación",
-    on_load=RankingState.load_ranking_data
+    on_load=[RankingState.load_ranking_data],
 )(clasificacion_page)

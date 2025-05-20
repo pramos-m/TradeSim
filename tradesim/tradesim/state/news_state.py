@@ -1,9 +1,15 @@
 # <<<--- CODI COMPLET FINAL PER A news_state.py --- >>>
 import requests
 import reflex as rx
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 import traceback # Per a millor debugging
+import os
+import asyncio
+import logging
+
+# Configuración del logger
+logger = logging.getLogger(__name__)
 
 # --- Model de Dades ---
 class NewsArticle(rx.Base):
