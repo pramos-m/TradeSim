@@ -64,21 +64,34 @@ def period_selector(selected: rx.Var[str], handler: rx.EventHandler) -> rx.Compo
 
 # Tarjeta Stock Portfolio (modificado para incluir logo)
 def portfolio_stock_card(item: PortfolioItem) -> rx.Component:
-    logo_src = item.logo_url  # URL del logo de la acción
-    # Include the 'Ver Detalles' link as in the user's provided code, but also keep the whole card clickable.
-    details_link = rx.link("Ver Detalles", href="#", size="1", color_scheme="blue") # Keep the link text and style
-    
-    # Use rx.cond to handle cases where item.symbol might be None or empty
+    # Implement the same image source logic as in search_state/buscador
+    # Prioritize item.logo_url if it looks like a valid URL or starts with /.
+    # Otherwise, construct a local path, and finally fallback to a default.
+    logo_src = rx.cond(
+        # Check if item.logo_url is not empty and starts with http or /
+        (item.logo_url != "") & (item.logo_url.startswith("http") | item.logo_url.startswith("/")),
+        item.logo_url, # Use the provided logo_url if it seems valid
+        # If not valid, construct a local path like in search_state.py
+        # Use item.symbol to create the potential local asset path
+        rx.cond(
+            (item.symbol != ""), # Check if symbol is available
+            f"/{item.symbol.lower()}.png", # Construct local path (using lowercase for consistency)
+            # Ultimate fallback if symbol is also not available
+            "/assets/default_logo.png"
+        )
+    )
+
+    details_link = rx.link("Ver Detalles", href="#", size="1", color_scheme="blue")
     return rx.cond(
         item.symbol & (item.symbol != ""), # Condition: symbol is not None and not empty string
         rx.card(
             rx.hstack(
                 rx.image(
-                    src=logo_src,
+                    src=logo_src, # Use the determined logo_src
                     width="40px",
                     height="40px",
                     object_fit="contain",
-                    fallback_src="/assets/default_logo.png", # Corrected prop name
+                    fallback_src="/assets/default_logo.png", # Keep the fallback_src as a safety net
                     mr="3",
                 ),  # Mostrar el logo
                 rx.vstack(
@@ -184,7 +197,7 @@ def dashboard_page() -> rx.Component:
                         rx.heading(rx.cond(AuthState.portfolio_chart_hover_info, f"${AuthState.portfolio_display_value:,.2f} USD", AuthState.formatted_total_portfolio_value), size="6", weight="bold"),                        
                         rx.hstack(
                         rx.match(AuthState.is_portfolio_value_change_positive, (True, rx.icon(tag="arrow_up", size=16, color=AuthState.portfolio_chart_color)), (False, rx.icon(tag="arrow_down", size=16, color=AuthState.portfolio_chart_color)), rx.text("?", font_size="sm")),
-                        rx.text(rx.cond(AuthState.portfolio_show_absolute_change, AuthState.formatted_portfolio_value_change_abs, f"({AuthState.formatted_portfolio_value_percent_change}%)"), color=AuthState.portfolio_chart_color, size="4", weight="medium", on_click=AuthState.portfolio_toggle_change_display, cursor="pointer"),
+                        rx.text(rx.cond(AuthState.portfolio_show_absolute_change, AuthState.formatted_portfolio_value_change_abs, f"{AuthState.formatted_portfolio_value_percent_change}%"), color=AuthState.portfolio_chart_color, size="4", weight="medium", on_click=AuthState.portfolio_toggle_change_display, cursor="pointer"),
                         rx.text(rx.cond(AuthState.portfolio_chart_hover_info, AuthState.portfolio_display_time, "Valor Total Portfolio"), color=TEXT_GRAY, size="2"),
                     spacing="3"),
                     align_items="start", spacing="1", mb="10px"

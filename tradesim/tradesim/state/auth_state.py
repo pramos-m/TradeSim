@@ -73,7 +73,8 @@ STOCK_LOGOS = {
 def get_stock_logo_url(symbol: str) -> str:
     """Obtiene la URL del logo de una acción usando el mapeo local o Clearbit."""
     if not symbol:
-        return "/assets/default_logo.png"
+        return "/default_logo.png"
+        # return "/assets/default_logo.png"
     
     # Primero intentar con el mapeo local
     symbol_upper = symbol.upper()
@@ -215,10 +216,65 @@ class AuthState(rx.State):
         except JWTError as e: logger.warning(f"Token decoding error: {e}"); return -1
         except (ValueError, TypeError): logger.warning("Token 'sub' not valid int."); return -1
 
+    # def _set_user_state(self, user: User):
+    #     self.is_authenticated = True
+    #     self.user_id = user.id
+    #     self.username = user.username if user.username else "" # Ensure username is not None
+    #     self.email = user.email
+    #     self.account_balance = float(user.account_balance or 0.0)
+
+    #     raw_image_url = getattr(user, 'profile_picture', None)
+
+    #     if raw_image_url and isinstance(raw_image_url, str) and raw_image_url.strip():
+    #         img_url = raw_image_url.strip()
+    #         # If it's a full URL, use it directly
+    #         if img_url.startswith('http://') or img_url.startswith('https://'):
+    #             self.profile_image_url = img_url
+    #         # If it's already an absolute path (e.g., /assets/image.png or /image.png if Reflex handles root paths to assets)
+    #         elif img_url.startswith('/'):
+    #             self.profile_image_url = img_url
+    #         # Otherwise, assume it's a filename in assets and prepend /
+    #         # Reflex typically serves from assets directory, so /filename.png should work if filename.png is in assets.
+    #         else:
+    #             self.profile_image_url = f"/{img_url}" # Or f"/assets/{img_url}" if you're strictly managing /assets/ prefix
+    #     else:
+    #         self.profile_image_url = DEFAULT_AVATAR
+
+    #     logger.info(f"_set_user_state: User {self.username} (ID: {self.user_id}), Email: {self.email}, Profile Image URL: {self.profile_image_url}")
+
+
     def _set_user_state(self, user: User):
-        self.is_authenticated = True; self.user_id = user.id; self.username = user.username; self.email = user.email
+        self.is_authenticated = True
+        self.user_id = user.id
+
+        # --- LOG DE DIAGNÓSTICO ---
+        # Este log es MUY IMPORTANTE. Revisa qué valor tiene user.username aquí.
+        logger.info(f"DEBUG _set_user_state: User object received. user.id: {user.id}, user.username: '{user.username}' (Type: {type(user.username)}), user.email: '{user.email}'")
+
+        # Asignación más robusta para self.username
+        if user.username and isinstance(user.username, str) and user.username.strip():
+            self.username = user.username.strip()
+        else:
+            self.username = "" # Si es None, no es string, o está vacío/solo espacios, se pone ""
+            logger.warning(f"DEBUG _set_user_state: user.username for user ID {user.id} was None, not a string, empty or whitespace. Setting AuthState.username to an empty string.")
+
+        self.email = user.email
         self.account_balance = float(user.account_balance or 0.0)
-        self.profile_image_url = getattr(user, 'profile_picture', DEFAULT_AVATAR) or DEFAULT_AVATAR
+
+        # Lógica para profile_image_url (la que te funcionó para la imagen)
+        raw_image_url = getattr(user, 'profile_picture', None)
+        if raw_image_url and isinstance(raw_image_url, str) and raw_image_url.strip():
+            img_url = raw_image_url.strip()
+            if img_url.startswith('http://') or img_url.startswith('https://'):
+                self.profile_image_url = img_url
+            elif img_url.startswith('/'):
+                self.profile_image_url = img_url
+            else:
+                self.profile_image_url = f"/{img_url}" # Asume que está en assets/
+        else:
+            self.profile_image_url = DEFAULT_AVATAR
+
+        logger.info(f"_set_user_state: User {self.username} (ID: {self.user_id}), Email: {self.email}, Profile Image URL: {self.profile_image_url}")
 
     def _clear_auth_state(self):
         self.is_authenticated = False; self.user_id = None; self.username = ""; self.email = ""
@@ -257,7 +313,7 @@ class AuthState(rx.State):
             token = self._create_access_token(user.id)
             if not token: self.error_message = "Error al generar token."; self._clear_auth_state(); self.loading = False; return
             self.auth_token = token; self.last_path = "/dashboard"; self.processed_token = False; self.loading = False
-            logger.info(f"Usuario {self.email} logueado."); self.password = ""
+            logger.info(f"Usuario {self.email} logueado. Username: {self.username}, Profile Image URL: {self.profile_image_url}"); self.password = ""
             # Después del login exitoso, cargar datos del portfolio y otros
             await asyncio.gather(
                 self._update_portfolio_value(),
@@ -295,7 +351,7 @@ class AuthState(rx.State):
             token = self._create_access_token(new_user.id)
             if not token: self.error_message = "Error al generar token post-registro."; self._clear_auth_state(); self.loading = False; return
             self.auth_token = token; self.last_path = "/dashboard"; self.processed_token = False; self.loading = False
-            logger.info(f"Usuario {self.email} registrado y logueado."); self.password = ""; self.confirm_password = ""; self.username = ""; self.email = ""
+            logger.info(f"Usuario {self.email} registrado y logueado. Username: {self.username}, Profile Image URL: {self.profile_image_url}"); self.password = ""; self.confirm_password = ""; self.username = ""; self.email = ""
             # Después del registro exitoso, cargar datos del portfolio y otros
             await asyncio.gather(
                 self._update_portfolio_value(),
@@ -328,7 +384,7 @@ class AuthState(rx.State):
     async def on_load(self):
         """Event to run when the page loads."""
         current_path = self.router.page.path
-        logger.info(f"AuthState.on_load: Path='{current_path}', Token? {'Yes' if self.auth_token else 'No'}, Processed? {self.processed_token}, Auth? {self.is_authenticated}")
+        logger.info(f"AuthState.on_load: Path='{current_path}', Token? {'Yes' if self.auth_token else 'No'}, Processed? {self.processed_token}, Auth? {self.is_authenticated}. State: Username: {self.username}, Email: {self.email}, Profile Image URL: {self.profile_image_url}")
         
         # Establecer la pestaña activa en función de la ruta si no se ha procesado el token
         # Esto ayuda a que las pestañas de login/registro sean correctas al acceder directamente por URL
@@ -431,7 +487,7 @@ class AuthState(rx.State):
         # Si se llamó a rx.redirect, el estado se limpiará en la próxima carga de página.
         # Si no hubo redirección, entonces la carga fue exitosa o el usuario está en una página pública.
         self.processed_token = True
-        logger.info(f"AuthState.on_load: Finalizado para '{current_path}'. Autenticado: {self.is_authenticated}. Token procesado: {self.processed_token}")
+        logger.info(f"AuthState.on_load: Finalizado para '{current_path}'. Autenticado: {self.is_authenticated}. Token procesado: {self.processed_token}. State: Username: {self.username}, Email: {self.email}, Profile Image URL: {self.profile_image_url}")
 
 
     @rx.event
@@ -1069,64 +1125,47 @@ class AuthState(rx.State):
 
     @rx.event
     async def dashboard_on_mount(self):
-        logger.info(f"Dashboard on_mount: User {self.username} (ID: {self.user_id}).")
-        if not self.is_authenticated or not self.user_id:
-             logger.warning("Dashboard: No auth, redirect login.");
-             # return rx.redirect("/login") # La redirección se maneja en on_load ahora
-             return # Solo salir si no autenticado, on_load se encargará de redirigir si es ruta protegida
+        logger.info(f"Dashboard on_mount triggered. Attempting to run global on_load first.")
+        await self.on_load() # Call the main on_load for token check & user hydration
 
-        self.is_loading_portfolio_chart = True # Indicar que se están cargando los datos del gráfico
-        logger.info("Dashboard on_mount: Iniciando carga de datos del dashboard.")
+        # Proceed only if still authenticated after the global on_load
+        if not self.is_authenticated:
+            logger.warning("Dashboard on_mount: User not authenticated after global on_load. Aborting dashboard load.")
+            # self.on_load() should have handled redirection if needed.
+            return
+
+        logger.info(f"Dashboard on_mount: User {self.username} (ID: {self.user_id}) authenticated. Loading dashboard data.")
+        self.is_loading_portfolio_chart = True
 
         try:
-            # Asegurarse de que los métodos existen antes de llamarlos
             required_methods = [
-                '_load_recent_transactions',
-                '_update_portfolio_chart_data',
-                '_update_portfolio_value', # Añadido
-                '_update_total_invested', # Añadido
-                '_update_pnl', # Añadido
-                'load_portfolio'
+                '_load_recent_transactions', '_update_portfolio_chart_data',
+                '_update_portfolio_value', '_update_total_invested', '_update_pnl', 'load_portfolio'
             ]
             if not all(hasattr(self, m) for m in required_methods):
                 missing = [m for m in required_methods if not hasattr(self, m)]
-                logger.error(f"CRITICAL: Faltan métodos de carga en AuthState: {missing}. No se cargará el dashboard correctamente.")
+                logger.error(f"CRITICAL: Faltan métodos de carga en AuthState: {missing}. No se cargará el dashboard.")
                 self.is_loading_portfolio_chart = False
-                # Opcional: Mostrar un mensaje de error al usuario
-                self.error_message = "Error interno al cargar el dashboard. Contacte al administrador."
+                self.error_message = "Error interno al cargar el dashboard."
                 return
 
-            # Cargar todos los datos necesarios para el dashboard
             await asyncio.gather(
                 self._load_recent_transactions(),
                 self._update_portfolio_chart_data(),
                 self._update_portfolio_value(),
                 self._update_total_invested(),
                 self._update_pnl(),
-                self.load_portfolio() # load_portfolio también actualiza total_portfolio_value
-                # await self._update_yearly_pnl_chart_data(), # Descomentar si este método existe
+                self.load_portfolio()
             )
-
             logger.info(f"Dashboard on_mount: Carga de datos completada.")
-            
-            # Debugging del DataFrame del gráfico
-            # logger.info(f"Dashboard DEBUG: portfolio_chart_data empty? {self.portfolio_chart_data.empty if isinstance(self.portfolio_chart_data,pd.DataFrame)else 'NotDF'}")
-            # if isinstance(self.portfolio_chart_data, pd.DataFrame) and not self.portfolio_chart_data.empty:
-            #     logger.info(f"Dashboard DEBUG: Cols:{self.portfolio_chart_data.columns.tolist()} Head:\n{self.portfolio_chart_data.head().to_string()}")
-            # else:
-            #     logger.warning("Dashboard DEBUG: portfolio_chart_data vacío/inválido post-update.")
-
-            # Los PnL diario, mensual y anual ahora se calculan dentro de _update_pnl si hay datos de gráfico.
-            # Si no hay datos de gráfico o transacciones, _update_pnl ya los pondrá a 0.0.
-
         except Exception as e:
             logger.error(f"Err dashboard_on_mount: {e}", exc_info=True)
-            # En caso de error, asegurar que el gráfico se muestre vacío o con mock data
             self.portfolio_chart_data = pd.DataFrame(columns=['time', 'total_value'])
-            self.error_message = f"Error al cargar datos del dashboard: {e}" # Mostrar un mensaje de error al usuario
+            self.error_message = f"Error al cargar datos del dashboard: {e}"
         finally:
             self.is_loading_portfolio_chart = False
             logger.info("Dashboard on_mount: Finalizado.")
+
 
 
     @rx.event
@@ -1142,8 +1181,20 @@ class AuthState(rx.State):
 
     @rx.event
     async def stock_detail_page_on_mount(self):
+        logger.info(f"StockDetail on_mount triggered. Attempting to run global on_load first.")
+        await self.on_load() # Call the main on_load for token check & user hydration
+
+        # Proceed only if still authenticated
+        if not self.is_authenticated:
+            logger.warning("StockDetail on_mount: User not authenticated after global on_load. Aborting stock detail load.")
+            # self.on_load() should have handled redirection.
+            # Optionally, set an error message for the page if not redirected.
+            self.current_stock_info = {"error": "Autenticación requerida para ver detalles de la acción."}
+            self.is_loading_current_stock_details = False
+            return
+
         route_symbol = self.router.page.params.get("symbol")
-        logger.info(f"StockDetail on_mount. Route Symbol:{route_symbol}, Current viewing symbol: '{self.viewing_stock_symbol}'")
+        logger.info(f"StockDetail on_mount (after global on_load). Route Symbol:{route_symbol}, Current viewing symbol: '{self.viewing_stock_symbol}', Auth User: {self.username}")
 
         if not route_symbol:
             self.current_stock_info = {"error": "Símbolo de acción no especificado en la URL."}
@@ -1153,62 +1204,47 @@ class AuthState(rx.State):
 
         symbol_upper = route_symbol.upper()
 
-        # Limpiar datos anteriores solo si el símbolo de la ruta es diferente al que se está viendo actualmente
         if self.viewing_stock_symbol.upper() != symbol_upper or not self.current_stock_info or self.current_stock_info.get("symbol", "").upper() != symbol_upper:
             logger.info(f"Nuevo símbolo para detalles: '{symbol_upper}'. Limpiando datos anteriores de '{self.viewing_stock_symbol}'.")
-            self.viewing_stock_symbol = symbol_upper
+            self.viewing_stock_symbol = symbol_upper # Set this before load_stock_page_data
             self.current_stock_info = {}
             self.current_stock_metrics = {}
             self.current_stock_history = pd.DataFrame(columns=['time','price'])
             self.current_stock_shares_owned = 0
             self.transaction_message = ""
             self.stock_detail_chart_hover_info = None
-            self.processed_news = [] # Clean news when changing stock
+            self.processed_news = []
             self.news_page = 1
         else:
             logger.info(f"Refrescando datos para el mismo símbolo: {self.viewing_stock_symbol}")
+            self.viewing_stock_symbol = symbol_upper # Ensure it's set for load_stock_page_data
 
-        self.is_loading_current_stock_details = True # Indicar que la carga ha comenzado
+        self.is_loading_current_stock_details = True
 
         try:
-            # Cargar la información básica de la acción (esto también guarda/actualiza en BD local)
-            await self.load_stock_page_data(symbol=self.viewing_stock_symbol)
+            await self.load_stock_page_data(symbol=self.viewing_stock_symbol) # Pass the correct symbol
 
-            # Continuar solo si la carga de info básica fue exitosa (no hay error en current_stock_info)
             if not self.current_stock_info.get("error"):
                 logger.info(f"StockDetail on_mount: Info básica para {self.viewing_stock_symbol} cargada. Cargando historial y noticias...")
-                
-                # Cargar datos del gráfico de historial para el período inicial (ej. 1M)
-                # Asegurarse de que self.current_stock_selected_period tenga un valor inicial sensato
                 if not self.current_stock_selected_period:
-                     self.current_stock_selected_period = "1M"
-                     logger.info("StockDetail on_mount: current_stock_selected_period no seteado, usando '1M'.")
-
+                    self.current_stock_selected_period = "1M"
                 await self._update_current_stock_chart_data_internal()
-
-                # Cargar noticias relacionadas con la acción
-                # Use the stock symbol as the search query for news on this page
-                logger.info(f"StockDetail on_mount: Loading news for {self.viewing_stock_symbol}.")
-                # The get_news method handles API key check and fallback
                 await self.get_news(new_query=self.viewing_stock_symbol)
-                
             else:
-                logger.warning(f"StockDetail on_mount: No se cargarán gráfico/noticias para {self.viewing_stock_symbol} debido a error previo en carga de info básica.")
-                # Asegurarse de que el historial y las noticias estén vacíos si la carga de info falló
+                logger.warning(f"StockDetail on_mount: No se cargarán gráfico/noticias para {self.viewing_stock_symbol} debido a error previo.")
                 self.current_stock_history = pd.DataFrame(columns=['time','price'])
                 self.processed_news = []
                 self.news_page = 1
-            
         except Exception as e:
             logger.error(f"Error crítico durante stock_detail_page_on_mount para {self.viewing_stock_symbol}: {e}", exc_info=True)
             self.current_stock_info = {"error": f"Error al cargar página de {self.viewing_stock_symbol}."}
-            self.current_stock_history = pd.DataFrame(columns=['time','price']) # Asegurar que el gráfico está vacío en caso de error
-            self.processed_news = [] # Asegurar que las noticias están vacías
+            self.current_stock_history = pd.DataFrame(columns=['time','price'])
+            self.processed_news = []
             self.news_page = 1
-            self.transaction_message = "Error al cargar los detalles de la acción." # Mensaje de error para el usuario
+            self.transaction_message = "Error al cargar los detalles de la acción."
         finally:
             self.is_loading_current_stock_details = False
-            logger.info(f"StockDetail on_mount finalizado para {self.viewing_stock_symbol}. Hist. datos cargados: {not self.current_stock_history.empty if isinstance(self.current_stock_history,pd.DataFrame)else 'NoDF'}. Noticias cargadas: {bool(self.processed_news)}")
+            logger.info(f"StockDetail on_mount finalizado para {self.viewing_stock_symbol}.")
 
 
     @rx.event
@@ -1537,15 +1573,14 @@ class AuthState(rx.State):
     def formatted_portfolio_value_percent_change(self) -> str:
         """Formatted portfolio percentage change with sign and 2 decimal places."""
         percent_change = self.portfolio_change_info.get('percent_change', 0.0)
-        return f"{percent_change:+.2f}%" # Usar + para mostrar signo positivo
-
+        # Remove the % sign from here since it's added in the UI
+        return f"{percent_change:+.2f}"
 
     @rx.var
     def formatted_portfolio_value_change_abs(self) -> str:
         """Formatted portfolio absolute change with sign and 2 decimal places."""
         change = self.portfolio_change_info.get('change', 0.0)
-        return f"{change:+.2f}" # Usar + para mostrar signo positivo
-
+        return f"{change:+,.2f}" # Add $ sign here for consistency
 
     @rx.var
     def portfolio_chart_color(self) -> str:

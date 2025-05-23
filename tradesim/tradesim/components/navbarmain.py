@@ -56,13 +56,12 @@
 #         bg="white",
 #     )
 
+# navbarmain.py
 import reflex as rx
 
-PRIMARY_COLOR = "#5271FF"  # Azul para el fondo del avatar
-OUTER_GREY_BORDER_COLOR = "#5271FF" # Color del borde exterior gris
-
-# --- AJUSTA EL GROSOR DEL BORDE GRIS AQUÍ ---
-OUTER_GREY_BORDER_THICKNESS = "1px" # Prueba con "2px", "2.5px", "3px", etc.
+PRIMARY_COLOR = "#5271FF"
+OUTER_GREY_BORDER_COLOR = "#5271FF"
+OUTER_GREY_BORDER_THICKNESS = "1px"
 
 def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     """
@@ -76,8 +75,6 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
     Returns:
         rx.Component: El componente de la barra de navegación.
     """
-    # print(f"DEBUG: Grosor del borde configurado a: {OUTER_GREY_BORDER_THICKNESS}, Color: {OUTER_GREY_BORDER_COLOR}")
-
     return rx.box(
         rx.hstack(
             rx.link(
@@ -86,12 +83,11 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
                         src=user_image_url,
                         fallback=rx.cond(user_name != "", user_name[:1].upper(), "?"),
                         size="4",
-                        bg=PRIMARY_COLOR, # El fondo del avatar es azul
-                        # Aplicando el borde con el color y grosor deseados:
+                        bg=PRIMARY_COLOR,
                         border=f"{OUTER_GREY_BORDER_THICKNESS} solid {OUTER_GREY_BORDER_COLOR}",
                     ),
                     rx.text(user_name, font_size="1.5em", font_weight="bold"),
-                    spacing="3", # Mantén o ajusta según sea necesario
+                    spacing="3",
                     align="center",
                     _hover={"opacity": 0.8},
                     transition="all 0.2s ease-in-out",
@@ -107,9 +103,15 @@ def navbar(user_name: str, user_image_url: str, logo_url: str) -> rx.Component:
             ),
             width="100%",
             padding="1em",
+            # 👇 Ensure this padding_left matches your sidebar width
+            padding_left="95px", # Adjust if your sidebar width changes from 90px (90px + 5px buffer)
             bg="white",
             border_bottom="1px solid #ddd",
         ),
-        width="100%",
+        position="fixed",
+        top="0",
+        left="0", # Ensure navbar starts at left: 0, padding will handle content
+        width="100%", # Navbar background spans full width
+        z_index="999",
         bg="white",
     )

@@ -86,6 +86,7 @@ def detalles_accion_page_content() -> rx.Component:
         rx.grid(
             # Columna Izquierda
             rx.vstack(
+                # ... (content of left column: heading, price, chart, buy/sell) ...
                 rx.hstack(
                     rx.vstack(
                         rx.heading(
@@ -99,38 +100,17 @@ def detalles_accion_page_content() -> rx.Component:
                         align_items="start", spacing="0"
                     ),
                     rx.spacer(),
-                    rx.cond(
-                        AuthState.current_stock_info.get("logo_url"),
-                        rx.image(
-                            src=AuthState.current_stock_info.get("logo_url"),
-                            alt=f"Logo de {AuthState.current_stock_info.get('name')}",
-                            width="48px",
-                            height="48px",
-                            object_fit="contain",
-                            border_radius="var(--radius-2)",
-                        ),
-                        rx.box(
-                            rx.text(
-                                AuthState.stock_symbol_first_letter_for_avatar,
-                                font_size="24px",
-                                font_weight="bold",
-                                color="var(--gray-11)",
-                            ),
-                            width="48px",
-                            height="48px",
-                            display="flex",
-                            align_items="center",
-                            justify_content="center",
-                            background="var(--gray-a3)",
-                            border_radius="var(--radius-2)",
-                        )
+                    rx.avatar(
+                        fallback=AuthState.stock_symbol_first_letter_for_avatar,
+                        size="5",
+                        radius="medium",
                     ),
                     align_items="center", spacing="3", width="100%"
                 ),
 
                 rx.vstack(
                     rx.text(
-                        AuthState.stock_detail_display_price, 
+                        AuthState.stock_detail_display_price,
                         font_size="2.75em", weight="bold", line_height="1.1"
                     ),
                     rx.text(
@@ -139,12 +119,12 @@ def detalles_accion_page_content() -> rx.Component:
                     ),
                     align_items="start", spacing="0", margin_top="0.75em", margin_bottom="0.5em",
                 ),
-                
+
                 period_selector_detail(AuthState.current_stock_selected_period, AuthState.set_current_stock_period),
-                
+
                 rx.box(
                     rx.plotly(
-                        data=AuthState.stock_detail_chart_figure, 
+                        data=AuthState.stock_detail_chart_figure,
                         on_hover=AuthState.stock_detail_chart_handle_hover,
                         on_unhover=AuthState.stock_detail_chart_handle_unhover,
                         width="100%", height="350px",
@@ -157,17 +137,17 @@ def detalles_accion_page_content() -> rx.Component:
                 rx.hstack(
                     rx.input(
                         placeholder="Cantidad", type="number", size="2",
-                        value=AuthState.buy_sell_quantity.to(str), 
+                        value=AuthState.buy_sell_quantity.to(str),
                         on_change=AuthState.set_buy_sell_quantity,
-                        min_="1", 
+                        min_="1",
                         width="100px"
                     ),
-                    rx.button("Comprar", size="2", color_scheme="green", 
-                              on_click=AuthState.buy_stock, 
+                    rx.button("Comprar", size="2", color_scheme="green",
+                              on_click=AuthState.buy_stock,
                               is_disabled=~AuthState.is_authenticated | AuthState.loading,
                               flex_grow="1"),
-                    rx.button("Vender", size="2", color_scheme="red", 
-                              on_click=AuthState.sell_stock, 
+                    rx.button("Vender", size="2", color_scheme="red",
+                              on_click=AuthState.sell_stock,
                               is_disabled=~AuthState.is_authenticated | AuthState.loading | (AuthState.current_stock_shares_owned < AuthState.buy_sell_quantity),
                               flex_grow="1"),
                     spacing="3", width="100%"
@@ -181,54 +161,60 @@ def detalles_accion_page_content() -> rx.Component:
                         variant="soft", margin_top="1em", width="100%"
                     )
                 ),
-                spacing="4", width="100%", padding_right="1.5em", 
+                spacing="4", width="100%", padding_right="1.5em",
             ),
 
             # Columna Derecha
             rx.vstack(
                 rx.heading("Estadísticas Clave", size="5", margin_bottom="0.75em"),
                 stock_metrics_grid(AuthState.current_stock_metrics_list),
-                
+
                 rx.heading("Sobre la Empresa", size="5", margin_top="2em", margin_bottom="0.75em"),
                 rx.scroll_area(
                     rx.text(
                         AuthState.current_stock_info.get("longBusinessSummary", "Información de la empresa no disponible."),
                         size="2", color_scheme="gray", line_height="1.6",
                     ),
-                    type="auto", scrollbars="vertical", max_height="250px", 
-                    padding_right="1em" 
+                    type="auto", scrollbars="vertical", max_height="250px",
+                    padding_right="1em"
                 ),
-                spacing="3", width="100%", padding_left="1.5em", 
-                border_left="1px solid var(--gray-a5)", 
-                height="100%" 
+                spacing="3", width="100%", padding_left="1.5em",
+                border_left="1px solid var(--gray-a5)",
+                height="100%"
             ),
-            columns="2fr 1fr", 
-            spacing="6", 
-            width="100%", 
-            align_items="start", 
-            padding_top="1em", padding_x="1em"
+            columns="2fr 1fr",
+            spacing="6",
+            width="100%",
+            align_items="start",
+            # padding_top="1em", # This was the original padding for the grid
+            padding_x="1em"
         ),
-        
+
         # Noticias relacionadas (debajo de las dos columnas principales)
         rx.cond(
-            AuthState.is_authenticated & AuthState.featured_stock_page_news.length() > 0, # Solo mostrar si autenticado y hay noticias
+            AuthState.is_authenticated & AuthState.featured_stock_page_news.length() > 0,
             rx.vstack(
                 rx.heading(f"Noticias sobre {AuthState.viewing_stock_symbol}", size="5", margin_top="2em", margin_bottom="1em"),
                 rx.grid(
                     rx.foreach(
-                        AuthState.featured_stock_page_news, # Usar las noticias procesadas del estado
+                        AuthState.featured_stock_page_news,
                         lambda news_item: news_item_card(news_item)
                     ),
-                    columns="repeat(auto-fill, minmax(300px, 1fr))", # Responsive grid
+                    columns="repeat(auto-fill, minmax(300px, 1fr))",
                     gap="1em",
                     width="100%"
                 ),
                 width="100%",
             ),
-            None # No mostrar nada si no hay noticias o no está autenticado
+            None
         ),
-
-        spacing="5", width="100%", max_width="1400px", margin_x="auto", padding_bottom="2em"
+        spacing="5",
+        width="100%",
+        max_width="1400px",
+        margin_x="auto",
+        padding_bottom="2em",
+        # 👇 Add or adjust padding_top for the entire page content here if needed
+        padding_top="2em", # Example: adds more space at the top of the page content
     )
 
 def detalles_accion_page() -> rx.Component:

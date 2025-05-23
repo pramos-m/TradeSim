@@ -48,19 +48,43 @@ def layout(content: rx.Component) -> rx.Component:
     Returns:
         rx.Component: The layout component.
     """
-    return rx.hstack(
-        sidebar(),
-        rx.vstack(
-            navbar(
-                user_name=AuthState.username,
-                user_image_url=AuthState.profile_image_url,
-                logo_url="/assets/logonavbar.PNG",  # Updated path to use /assets/ prefix
+    return rx.vstack(
+        # Place the fixed navbar outside the hstack
+        navbar(
+            user_name=AuthState.username,
+            user_image_url=AuthState.profile_image_url,
+            logo_url="/logonavbar.PNG", # Keep the updated path
+        ),
+        rx.hstack(
+            sidebar(),
+            rx.vstack(
+                # Remove the navbar from here
+                # navbar(
+                #     user_name=AuthState.username,
+                #     user_image_url=AuthState.profile_image_url,
+                #     # logo_url="/assets/logonavbar.PNG",
+                #     logo_url="/logonavbar.PNG",
+                # ),
+                content,
+                width="100%",
+                min_height="100vh",
+                background="gray.50",
+                margin_left="90px",
+                # Adjust padding-top to only account for the content below the navbar
+                # The main vstack containing the hstack will handle the navbar offset
+                padding_top="0px", # Remove padding_top from here
+                
+                # Removed horizontal padding and centering as requested
+                # padding_x="1rem", # Add horizontal padding
+                # max_width="1000px", # Set max width, adjust as needed
+                # margin_x="auto", # Center the content horizontally
             ),
-            content,
             width="100%",
             min_height="100vh",
-            background="gray.50", # Considera usar rx.color_mode_cond para temas claro/oscuro si es relevante
         ),
         width="100%",
         min_height="100vh",
+        # Add padding-top to the root vstack to push content below the fixed navbar
+        # Adjust this value based on the actual height of your navbar
+        padding_top="70px", # This will offset the content below the fixed navbar
     )

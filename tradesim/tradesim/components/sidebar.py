@@ -8,6 +8,7 @@ def sidebar() -> rx.Component:
         rx.Component: The sidebar component.
     """
     return rx.box(
+        # Original sidebar content (rx.vstack)
         rx.vstack(
             # Dashboard Button
             rx.image(
@@ -50,6 +51,11 @@ def sidebar() -> rx.Component:
             height="100%",  # Take up full height of the sidebar
             padding_y="2",  # Add padding at the top and bottom
         ),
+        # Apply fixed positioning after the vstack child
+        position="fixed",
+        top="0",
+        left="0",
+        z_index="999", # Ensure sidebar is above content
         width="90px",  # Width of the sidebar
         height="100vh",  # Full height of the viewport
         bg="white",  # Background color of the sidebar
